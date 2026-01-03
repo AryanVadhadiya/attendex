@@ -4,14 +4,19 @@ import { Link } from 'react-router-dom';
 
 const SubjectCard = ({ subject, stats, threshold = 75 }) => {
   if (!stats) return null;
-  const { currentLoad, presentCount } = stats;
+  const { currentLoad, presentCount, totalLoad } = stats;
   // Note: We ignore stats.remainingAllowed because we want this to update instantly with the slider
 
-  // Recalculate based on dynamic threshold
-  // Formula: How many more classes can I miss RIGHT NOW?
-  // Safe Bunks = floor(Present / (Threshold/100)) - Total
-  // Example: Present=6, Threshold=0.75. 6/0.75 = 8. 8-7=1 bunk.
-  const calculatedBunks = Math.floor(presentCount / (threshold / 100)) - currentLoad;
+  // Recalculate based on dynamic threshold using SEMESTER TOTAL (projected)
+  // Formula: floor(Total * (1 - T)) - Absent
+
+  // Use projected total if available (e.g. 62), else current load (e.g. 7)
+  const baseLoad = totalLoad || currentLoad;
+  const absentCount = currentLoad - presentCount;
+
+  const allowedMisses = Math.floor(baseLoad * (1 - threshold / 100));
+  const calculatedBunks = allowedMisses - absentCount;
+
   const presentPercent = currentLoad > 0 ? Math.round((presentCount / currentLoad) * 100) : 0;
 
   return (
