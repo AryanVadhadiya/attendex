@@ -22,12 +22,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-        // Token expired or invalid
-        // If we implement refresh token logic, do it here.
-        // For now, logout.
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        // window.location.href = '/login'; // Force redirect? Safe?
+      // Token expired or invalid - clear everything and redirect
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
