@@ -8,6 +8,9 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
+// Trust Vercel Proxy
+app.set('trust proxy', 1);
+
 // Middleware
 // CORS configuration
 app.use(cors({
@@ -28,7 +31,8 @@ app.use(morgan('dev'));
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5000 // Increased for development to prevent 429 errors
+  max: 5000, // Increased for development to prevent 429 errors
+  validate: { trustProxy: false }
 });
 app.use('/api', limiter);
 
