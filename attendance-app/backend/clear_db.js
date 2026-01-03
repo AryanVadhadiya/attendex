@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const MONGO_URI = 'mongodb+srv://aryanvadhadiya1_db_user:ZkFp9VS4a1flUCRc@cluster0.y2ecgli.mongodb.net/attence_db?retryWrites=true&w=majority&appName=Cluster0';
+const MONGO_URI = 'mongodb+srv://aryanvadhadiya1_db_user:ZkFp9VS4a1flUCRc@cluster0.y2ecgli.mongodb.net/attendance_db?retryWrites=true&w=majority&appName=Cluster0';
 
 async function clearDatabase() {
   try {
