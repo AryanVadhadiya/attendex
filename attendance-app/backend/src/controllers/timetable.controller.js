@@ -4,6 +4,13 @@ const AttendanceRecord = require('../models/AttendanceRecord');
 const Occurrence = require('../models/Occurrence');
 const { generateOccurrences } = require('../services/occurrence.service');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const USER_TZ = 'Asia/Kolkata';
 
 // Save weekly slots (Template)
 const getTimetable = async (req, res) => {
@@ -96,8 +103,8 @@ const publishTimetable = async (req, res) => {
     const stats = await generateOccurrences(req.user._id, startDate, endDate, weeklySlots, userHolidays);
 
     // 3. Handle Auto-Mark Logic (Start < Today)
-    const today = dayjs();
-    const start = dayjs(startDate);
+    const today = dayjs().tz(USER_TZ);
+    const start = dayjs(startDate).tz(USER_TZ);
 
     let autoMarkedCount = 0;
 
@@ -114,7 +121,7 @@ const publishTimetable = async (req, res) => {
       // If confirmed, find all occurrences <= today and mark present
       const autoOccurrences = await Occurrence.find({
         userId: req.user._id,
-        date: { $gte: start.toDate(), $lte: today.endOf('day').toDate() },
+        date: { $gte: start.startOf('day').toDate(), $lte: today.endOf('day').toDate() },
         isExcluded: false
       });
 
@@ -122,16 +129,18 @@ const publishTimetable = async (req, res) => {
         updateOne: {
           filter: { occurrenceId: occ._id, userId: req.user._id },
           update: {
-            $setOnInsert: {
-              occurrenceId: occ._id,
-              userId: req.user._id,
+            $set: {
               subjectId: occ.subjectId,
-              present: true,
+              present: true, // Force Present
               createdBy: 'system',
               isAutoMarked: true,
               isGranted: false
-            }
-          }, // Only insert if not exists (don't overwrite manual edits if they somehow exist)
+            },
+           $setOnInsert: {
+               occurrenceId: occ._id,
+               userId: req.user._id
+           }
+          },
           upsert: true
         }
       }));
