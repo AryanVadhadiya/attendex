@@ -80,7 +80,7 @@ export const useAttendanceByDate = (date) => {
 
 // User Profile Hook
 export const useUserProfile = () => {
-    const { data, error, isLoading } = useSWR('/users/profile', fetcher, {
+    const { data, error, isLoading } = useSWR('/user/profile', fetcher, {
         revalidateOnFocus: false
     });
     return {
