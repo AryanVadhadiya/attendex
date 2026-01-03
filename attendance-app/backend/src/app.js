@@ -36,6 +36,29 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
+// MongoDB Connection for Vercel/Serverless
+const MONGO_URI = process.env.MONGO_URI;
+
+const connectDB = async () => {
+  if (mongoose.connection.readyState >= 1) return;
+
+  try {
+    if (!MONGO_URI) {
+      throw new Error('MONGO_URI is not defined in environment variables');
+    }
+    await mongoose.connect(MONGO_URI);
+    console.log('MongoDB Connected 🚀');
+  } catch (err) {
+    console.error('MongoDB Connection Error:', err.message);
+  }
+};
+
+// Middleware to ensure DB is connected BEFORE routes
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
+
 // Root Endpoint
 app.get('/', (req, res) => {
   res.send('Attendance App Backend is Running 🚀 [v2.1]');
@@ -70,29 +93,6 @@ app.use('/api/user', require('./routes/user.routes'));
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Server Error', error: err.message });
-});
-
-// MongoDB Connection for Vercel/Serverless
-const MONGO_URI = process.env.MONGO_URI;
-
-const connectDB = async () => {
-  if (mongoose.connection.readyState >= 1) return;
-
-  try {
-    if (!MONGO_URI) {
-      throw new Error('MONGO_URI is not defined in environment variables');
-    }
-    await mongoose.connect(MONGO_URI);
-    console.log('MongoDB Connected 🚀');
-  } catch (err) {
-    console.error('MongoDB Connection Error:', err.message);
-  }
-};
-
-// Middleware to ensure DB is connected
-app.use(async (req, res, next) => {
-  await connectDB();
-  next();
 });
 
 module.exports = app;
