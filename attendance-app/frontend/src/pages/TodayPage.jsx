@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useAttendanceByDate } from '../hooks/useAttendanceData';
 import dayjs from 'dayjs';
 import { Loader2, CheckCircle2, XCircle, Calendar as CalendarIcon, Save, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
@@ -7,25 +8,23 @@ import { Link } from 'react-router-dom';
 
 const TodayPage = () => {
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
+
+  // SWR Hook
+  const { occurrences, loading: loadingSessions, mutate } = useAttendanceByDate(date);
+
   const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // Sync server data to local
   useEffect(() => {
-    fetchSessions();
-  }, [date]);
-
-  const fetchSessions = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get(`/attendance?date=${date}`);
-      setSessions(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    if (occurrences) {
+      setSessions(occurrences);
     }
-  };
+  }, [occurrences]);
+
+  const loading = loadingSessions && sessions.length === 0;
+
+  // Removed manual fetchSessions function
 
   const shiftDate = (days) => {
     const newDate = dayjs(date).add(days, 'day').format('YYYY-MM-DD');
@@ -62,7 +61,7 @@ const TodayPage = () => {
     try {
       await api.post('/attendance/bulk', { entries });
       alert("Attendance Saved!");
-      fetchSessions();
+      mutate();
     } catch (err) {
       alert("Failed to save");
     } finally {

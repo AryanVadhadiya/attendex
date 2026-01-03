@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { statsApi } from '../services/api';
+import { useState } from 'react';
+import { useDashboardStats } from '../hooks/useAttendanceData';
 import SubjectCard from '../components/Dashboard/SubjectCard';
 import { Loader2, AlertCircle, TrendingUp, BookOpen, XCircle, Sparkles, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -7,26 +7,8 @@ import UnmarkedAttendanceAlert from '../components/Dashboard/UnmarkedAttendanceA
 import clsx from 'clsx';
 
 const DashboardPage = () => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [threshold, setThreshold] = useState(80);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await statsApi.dashboard({ threshold: 75 });
-      setData(res.data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const { data, loading, error } = useDashboardStats();
 
   const handleThresholdChange = (val) => {
     setThreshold(val);

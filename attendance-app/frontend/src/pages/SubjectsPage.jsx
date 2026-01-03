@@ -1,13 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { subjectApi, userApi } from '../services/api';
+import { subjectApi } from '../services/api';
+import { useSubjects, useUserProfile } from '../hooks/useAttendanceData';
 import { Loader2, Plus, Trash2, BookOpen, Pencil, Lock } from 'lucide-react';
 import clsx from 'clsx';
 import { Link } from 'react-router-dom';
 
 const SubjectsPage = () => {
-    const [subjects, setSubjects] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { subjects = [], loading: subjectsLoading, mutate } = useSubjects();
+    const { user, loading: userLoading } = useUserProfile();
+
+    // Derived state
+    const loading = subjectsLoading || userLoading;
+    const isLocked = user && user.isTimetableLocked;
+
     const [creating, setCreating] = useState(false);
 
     // Form for new subject
@@ -15,7 +21,7 @@ const SubjectsPage = () => {
     const [showForm, setShowForm] = useState(false);
     const [assignedColor, setAssignedColor] = useState('#3b82f6');
     const [editingId, setEditingId] = useState(null);
-    const [isLocked, setIsLocked] = useState(false);
+    // const [isLocked, setIsLocked] = useState(false); // Removed local state
 
     const PALETTE = ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
 
@@ -23,7 +29,7 @@ const SubjectsPage = () => {
         if (isLocked) return;
         if (!showForm) {
             // Assign random unused color
-            const usedColors = subjects.map(s => s.color);
+            const usedColors = (subjects || []).map(s => s.color);
             const available = PALETTE.filter(c => !usedColors.includes(c));
             const pool = available.length > 0 ? available : PALETTE;
             const randomColor = pool[Math.floor(Math.random() * pool.length)];
@@ -36,24 +42,7 @@ const SubjectsPage = () => {
         setShowForm(!showForm);
     };
 
-    useEffect(() => {
-        fetchSubjects();
-    }, []);
-
-    const fetchSubjects = async () => {
-        try {
-            const [subRes, userRes] = await Promise.all([
-                 subjectApi.list(),
-                 userApi.getProfile()
-            ]);
-            setSubjects(subRes.data);
-            setIsLocked(userRes.data.isTimetableLocked);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Removed useEffect and fetchSubjects
 
     const onSubmit = async (data) => {
         setCreating(true);
@@ -66,7 +55,7 @@ const SubjectsPage = () => {
             reset();
             setShowForm(false);
             setEditingId(null);
-            fetchSubjects();
+            mutate();
         } catch (err) {
             alert('Failed to save subject');
         } finally {
@@ -95,7 +84,7 @@ const SubjectsPage = () => {
         if (!confirm('Are you sure? This does NOT remove old attendance records but hides the subject from future.')) return;
         try {
             await subjectApi.delete(id);
-            fetchSubjects();
+            mutate();
             if (editingId === id) {
                 setShowForm(false);
                 setEditingId(null);

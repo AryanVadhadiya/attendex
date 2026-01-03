@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
-import api, { subjectApi, userApi } from '../services/api'; // Need timetable api
+import api, { subjectApi, userApi } from '../services/api';
+import { useSubjects, useUserProfile, useTimetable, useHolidays } from '../hooks/useAttendanceData';
 import DraggableSubject from '../components/TimetableEditor/DraggableSubject';
 import DroppableCell from '../components/TimetableEditor/DroppableCell';
 import { Loader2, Save, Lock, Unlock, X } from 'lucide-react';
@@ -11,58 +12,60 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const HOURS = Array.from({ length: 11 }, (_, i) => i + 8); // 8 to 18
 
 const TimetablePage = () => {
-    const [subjects, setSubjects] = useState([]);
-    const [slots, setSlots] = useState([]); // [{ day: 1, hour: 9, subject, sessionType }]
-    const [startDate, setStartDate] = useState('2025-12-22');
-    const [endDate, setEndDate] = useState('2026-04-18');
-    const [holidays, setHolidays] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // SWR Hooks
+    const { subjects = [] } = useSubjects();
+    const { user, mutate: mutateUser } = useUserProfile();
+    const { holidays: serverHolidays } = useHolidays(); // Read-only from server initially
+    const { slots: serverSlots, loading: slotsLoading, mutate: mutateTimetable } = useTimetable();
+
+    // Derived State
+    const isLocked = user && user.isTimetableLocked;
+
+    // Local State
+    const [slots, setSlots] = useState([]);
+    const [startDate, setStartDate] = useState(dayjs().format('YYYY-MM-DD'));
+    const [endDate, setEndDate] = useState(dayjs().add(4, 'month').format('YYYY-MM-DD'));
+    const [holidays, setHolidays] = useState([]); // Local editable state
     const [activeDrag, setActiveDrag] = useState(null);
-    const [isLocked, setIsLocked] = useState(false);
     const [initialStartDate, setInitialStartDate] = useState(null);
 
+    // Sync User Profile & Holidays
     useEffect(() => {
-        const fetchInit = async () => {
-             try {
-                 const [subRes, userRes, holRes, ttRes] = await Promise.all([
-                     subjectApi.list(),
-                     userApi.getProfile(),
-                     api.get('/holidays'),
-                     api.get('/timetable')
-                 ]);
-                 setSubjects(subRes.data);
-                 setIsLocked(userRes.data.isTimetableLocked);
-                 setHolidays(holRes.data);
-                 if (userRes.data.semesterStartDate) {
-                     const formatted = dayjs(userRes.data.semesterStartDate).format('YYYY-MM-DD');
-                     setStartDate(formatted);
-                     setInitialStartDate(formatted);
-                 }
-
-                 // Map backend slots to frontend format
-                 const mappedSlots = ttRes.data.map(s => {
-                     // Ensure subject is populated and not just an ID
-                     const subject = typeof s.subjectId === 'object' ? s.subjectId : subRes.data.find(sub => sub._id === s.subjectId);
-
-                     return {
-                         day: DAYS[s.dayOfWeek - 1],
-                         dayOfWeek: s.dayOfWeek,
-                         hour: s.startHour,
-                         startHour: s.startHour,
-                         durationHours: s.durationHours,
-                         sessionType: s.sessionType,
-                         subject: subject
-                     };
-                 }).filter(s => s.subject); // Filter out if subject not found
-                 setSlots(mappedSlots);
-             } catch (err) {
-                 console.error("Failed to load timetable data", err);
-             } finally {
-                 setLoading(false);
+        if (user) {
+             const userStart = user.semesterStartDate ? dayjs(user.semesterStartDate).format('YYYY-MM-DD') : null;
+             if (userStart) {
+                 setStartDate(userStart);
+                 setInitialStartDate(userStart);
              }
-        };
-        fetchInit();
-    }, []);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (serverHolidays) {
+            setHolidays(serverHolidays);
+        }
+    }, [serverHolidays]);
+
+    // Initialize Slots from Server
+    useEffect(() => {
+        if (serverSlots && subjects.length > 0) {
+             const mappedSlots = serverSlots.map(s => {
+                 const subject = typeof s.subjectId === 'object' ? s.subjectId : subjects.find(sub => sub._id === s.subjectId);
+                 return {
+                     day: DAYS[s.dayOfWeek - 1],
+                     dayOfWeek: s.dayOfWeek,
+                     hour: s.startHour,
+                     startHour: s.startHour,
+                     durationHours: s.durationHours,
+                     sessionType: s.sessionType,
+                     subject: subject
+                 };
+             }).filter(s => s.subject);
+             setSlots(mappedSlots);
+        }
+    }, [serverSlots, subjects]);
+
+    const loading = slotsLoading || !user;
 
     const syncTimetable = async (currentSlots) => {
         try {
@@ -141,7 +144,7 @@ const TimetablePage = () => {
         try {
             const newState = !isLocked;
             await userApi.updateProfile({ isTimetableLocked: newState });
-            setIsLocked(newState);
+            mutateUser();
         } catch (err) {
             alert("Failed to update lock status");
         }
