@@ -1,0 +1,58 @@
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+
+const app = express();
+
+// Middleware
+// CORS first - Allow all origins in development
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+
+// Helmet with relaxed settings for development
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+app.use(express.json());
+app.use(morgan('dev'));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5000 // Increased for development to prevent 429 errors
+});
+app.use('/api', limiter);
+
+// Root Endpoint
+app.get('/', (req, res) => {
+  res.send('Attendance App Backend is Running 🚀');
+});
+
+// Routes
+app.use('/api/auth', require('./routes/auth.routes'));
+const subjectRoutes = require('./routes/subject.routes');
+const timetableRoutes = require('./routes/timetable.routes');
+const attendanceRoutes = require('./routes/attendance.routes');
+const calendarRoutes = require('./routes/calendar.routes');
+
+app.use('/api/subjects', subjectRoutes);
+app.use('/api/timetable', timetableRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api', calendarRoutes); // Mounts /holidays and /granted at /api level
+app.use('/api/user', require('./routes/user.routes'));
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Server Error', error: err.message });
+});
+
+module.exports = app;
