@@ -55,4 +55,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Server Error', error: err.message });
 });
 
+// For Vercel Serverless: Connect to DB if not already connected
+const MONGO_URI = process.env.MONGO_URI;
+if (process.env.NODE_ENV === 'production') {
+  mongoose.connect(MONGO_URI)
+    .then(() => console.log('MongoDB Connected (Serverless)'))
+    .catch(err => console.error('MongoDB Connection Error:', err));
+}
+
 module.exports = app;
