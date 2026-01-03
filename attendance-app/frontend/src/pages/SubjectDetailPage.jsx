@@ -16,12 +16,13 @@ const SubjectDetailPage = () => {
     const [saving, setSaving] = useState(false);
     const [threshold, setThreshold] = useState(80); // Default 80%
 
-    const fetchData = useCallback(async (currentThreshold) => {
+    const fetchData = useCallback(async () => {
         try {
-            // Fetch stats with threshold
+            // Fetch stats (initial/base)
+            // We request with a default threshold (e.g. 75) but we will override calculations locally
             const statsRes = await statsApi.get({
                 subjectId: id,
-                threshold: currentThreshold || threshold
+                threshold: 75
             });
             setStats(statsRes.data);
 
@@ -33,7 +34,7 @@ const SubjectDetailPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [id, threshold]);
+    }, [id]);
 
     useEffect(() => {
         fetchData();
@@ -41,8 +42,7 @@ const SubjectDetailPage = () => {
 
     const handleThresholdChange = (val) => {
         setThreshold(val);
-        setLoading(true);
-        fetchData(val);
+        // Instant update, no network call
     };
 
     const toggleEdit = () => {
@@ -84,9 +84,24 @@ const SubjectDetailPage = () => {
     }
 
     const subject = history[0]?.subject || {};
-    const bunkUsagePercent = stats?.semesterBudget > 0
-        ? Math.min(100, Math.max(0, (stats.absentCount / stats.semesterBudget) * 100))
-        : 0;
+
+    // Dynamic Client-Side Calculation
+    const totalLoad = stats?.totalLoad || 0;
+    const currentLoad = stats?.currentLoad || 0;
+    const presentCount = stats?.presentCount || 0;
+    const absentCount = stats?.absentCount || 0;
+
+    // Calculate requirements based on current selected threshold
+    const requiredClasses = Math.ceil(totalLoad * (threshold / 100));
+    const semesterBudget = totalLoad - requiredClasses;
+
+    // Remaining Bunks (Safe Bunks Left)
+    const remainingAllowed = semesterBudget - absentCount;
+
+    // Bunk Usage %
+    const bunkUsagePercent = semesterBudget > 0
+        ? Math.min(100, Math.max(0, (absentCount / semesterBudget) * 100))
+        : (absentCount > 0 ? 100 : 0);
 
     return (
         <div className="max-w-5xl mx-auto pb-20">
@@ -138,9 +153,9 @@ const SubjectDetailPage = () => {
                             hideText={true}
                         />
                         <div className="absolute inset-0 flex items-center justify-center flex-col">
-                           <span className="text-2xl font-bold text-foreground">{stats?.presentCount}</span>
+                           <span className="text-2xl font-bold text-foreground">{presentCount}</span>
                            <div className="h-px w-8 bg-border my-1" />
-                           <span className="text-xs text-muted-foreground">{stats?.currentLoad}</span>
+                           <span className="text-xs text-muted-foreground">{currentLoad}</span>
                         </div>
                     </div>
                     <div className="mt-4">
@@ -162,9 +177,9 @@ const SubjectDetailPage = () => {
                             hideText={true}
                         />
                         <div className="absolute inset-0 flex items-center justify-center flex-col">
-                           <span className="text-2xl font-bold text-foreground">{stats?.absentCount}</span>
+                           <span className="text-2xl font-bold text-foreground">{absentCount}</span>
                            <div className="h-px w-8 bg-border my-1" />
-                           <span className="text-xs text-muted-foreground">{stats?.semesterBudget}</span>
+                           <span className="text-xs text-muted-foreground">{semesterBudget}</span>
                         </div>
                     </div>
                     <div className="mt-4">
@@ -179,15 +194,15 @@ const SubjectDetailPage = () => {
                         <div className="flex justify-between items-start mb-2">
                              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Safe Bunks Left</p>
                              <span className="text-xs font-bold text-muted-foreground bg-muted px-2 py-1 rounded-lg">
-                                {stats?.absentCount}/{stats?.semesterBudget} USED
+                                {absentCount}/{semesterBudget} USED
                              </span>
                         </div>
                         <div className="flex items-end gap-2">
                              <span className={clsx(
                                  "text-4xl font-bold",
-                                 (stats?.remainingAllowed || 0) < 0 ? "text-destructive" : "text-accent"
+                                 remainingAllowed < 0 ? "text-destructive" : "text-accent"
                              )}>
-                                 {stats?.remainingAllowed || 0}
+                                 {remainingAllowed}
                              </span>
                              <span className="text-sm text-muted-foreground mb-1.5">classes</span>
                         </div>
@@ -199,7 +214,7 @@ const SubjectDetailPage = () => {
                         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 text-primary">Class Summary</p>
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-muted-foreground">Total Classes</span>
-                            <span className="font-bold text-foreground">{stats?.currentLoad} / {stats?.totalLoad}</span>
+                            <span className="font-bold text-foreground">{currentLoad} / {totalLoad}</span>
                         </div>
                    </div>
                 </div>
