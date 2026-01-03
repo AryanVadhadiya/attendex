@@ -26,7 +26,7 @@ const SubjectCard = ({ subject, stats, threshold = 75 }) => {
           <h3 className="font-semibold text-lg text-foreground leading-tight">{subject.name}</h3>
           <p className="text-muted-foreground text-sm mt-1">{subject.code}</p>
         </div>
-        <ProgressRing percentage={presentPercent} size={48} strokeWidth={4} />
+        <ProgressRing percentage={presentPercent} size={48} strokeWidth={4} threshold={threshold} />
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4">

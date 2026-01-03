@@ -1,13 +1,16 @@
 import clsx from 'clsx';
 
-const ProgressRing = ({ percentage = 0, size = 60, strokeWidth = 5, hideText = false }) => {
+const ProgressRing = ({ percentage = 0, size = 60, strokeWidth = 5, hideText = false, threshold = 75 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percentage / 100) * circumference;
 
-  let color = 'text-accent';
-  if (percentage < 70) color = 'text-destructive';
-  else if (percentage < 75) color = 'text-amber-500';
+  let color = 'text-accent'; // Green/Blue default
+
+  if (percentage < threshold) {
+     if (percentage < threshold - 10) color = 'text-destructive'; // Deep red if far below
+     else color = 'text-amber-500'; // Orange if slightly below
+  }
 
   const displayPercentage = typeof percentage === 'number' ? (percentage % 1 === 0 ? percentage : percentage.toFixed(1)) : percentage;
 
