@@ -2,9 +2,16 @@ import ProgressRing from './ProgressRing';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const SubjectCard = ({ subject, stats }) => {
+const SubjectCard = ({ subject, stats, threshold = 75 }) => {
   if (!stats) return null;
-  const { totalLoad, currentLoad, presentCount, absentCount, presentPercent, remainingAllowed } = stats;
+  const { currentLoad, presentCount } = stats;
+
+  // Recalculate based on dynamic threshold
+  // Formula: How many more classes can I miss?
+  // Safe Bunks = floor(Present / Threshold) - Total
+  const safeBunks = Math.floor(presentCount / (threshold / 100)) - currentLoad;
+  const remainingAllowed = safeBunks;
+  const presentPercent = currentLoad > 0 ? Math.round((presentCount / currentLoad) * 100) : 0;
 
   return (
     <div className="card p-5 relative overflow-hidden group hover:scale-[1.01] transition-transform">
