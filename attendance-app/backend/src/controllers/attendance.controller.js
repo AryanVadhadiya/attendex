@@ -2,6 +2,13 @@ const { calculateStats, bulkMarkAttendance } = require('../services/attendance.s
 const Occurrence = require('../models/Occurrence');
 const AttendanceRecord = require('../models/AttendanceRecord');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const USER_TZ = 'Asia/Kolkata';
 
 // Get attendance for a specific date (Today Page)
 const getAttendanceByDate = async (req, res) => {
@@ -9,8 +16,9 @@ const getAttendanceByDate = async (req, res) => {
   if (!date) return res.status(400).json({ message: 'Date required' });
 
   try {
-    const start = dayjs(date).startOf('day').toDate();
-    const end = dayjs(date).endOf('day').toDate();
+    // Parse date in User TZ to get correct start/end in UTC
+    const start = dayjs(date).tz(USER_TZ).startOf('day').toDate();
+    const end = dayjs(date).tz(USER_TZ).endOf('day').toDate();
 
     const occurrences = await Occurrence.find({
       userId: req.user._id,
@@ -44,8 +52,8 @@ const submitAttendance = async (req, res) => {
         const occurrenceIds = entries.map(e => e.occurrenceId);
         const occurrences = await Occurrence.find({ _id: { $in: occurrenceIds } });
 
-        const todayStart = dayjs().startOf('day');
-        const hasPast = occurrences.some(occ => dayjs(occ.date).isBefore(todayStart));
+        const todayStart = dayjs().tz(USER_TZ).startOf('day');
+        const hasPast = occurrences.some(occ => dayjs(occ.date).tz(USER_TZ).isBefore(todayStart));
 
         if (hasPast) {
             return res.status(403).json({ message: 'Configuration is locked. Cannot edit past attendance.' });
@@ -82,7 +90,7 @@ const getDashboard = async (req, res) => {
 
 const getPendingAttendance = async (req, res) => {
   try {
-    const todayStart = dayjs().startOf('day').toDate();
+    const todayStart = dayjs().tz(USER_TZ).startOf('day').toDate();
 
     const pastOccurrences = await Occurrence.find({
       userId: req.user._id,
@@ -111,7 +119,7 @@ const acknowledgePending = async (req, res) => {
   try {
     let targetIds = occurrenceIds;
     if (occurrenceIds === 'all') {
-       const todayStart = dayjs().startOf('day').toDate();
+       const todayStart = dayjs().tz(USER_TZ).startOf('day').toDate();
        const pastOccurrences = await Occurrence.find({
           userId: req.user._id,
           date: { $lt: todayStart },

@@ -23,7 +23,7 @@ async function restoreBackup() {
     for (const subject of backup.subjects) {
       const oldId = subject._id;
       delete subject._id;
-      subject.ownerId = NEW_USER_ID;
+      subject.ownerId = new mongoose.Types.ObjectId(NEW_USER_ID); // Convert to ObjectId
 
       const newSubject = await Subject.create(subject);
       subjectMap[oldId] = newSubject._id.toString();
@@ -33,7 +33,7 @@ async function restoreBackup() {
     console.log('\n📅 Importing Timetable Slots...');
     for (const slot of backup.timetable) {
       delete slot._id;
-      slot.userId = NEW_USER_ID;
+      slot.userId = new mongoose.Types.ObjectId(NEW_USER_ID); // Convert to ObjectId
       slot.subjectId = subjectMap[slot.subjectId]; // Map to new subject ID
 
       await WeeklySlot.create(slot);
@@ -43,7 +43,7 @@ async function restoreBackup() {
     console.log('\n🎉 Importing Holidays...');
     for (const holiday of backup.holidays) {
       delete holiday._id;
-      holiday.userId = NEW_USER_ID;
+      holiday.userId = new mongoose.Types.ObjectId(NEW_USER_ID); // Convert to ObjectId
 
       await HolidayRange.create(holiday);
       console.log(`  ✓ ${holiday.reason}`);
