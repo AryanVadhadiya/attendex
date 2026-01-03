@@ -5,12 +5,13 @@ import { Link } from 'react-router-dom';
 const SubjectCard = ({ subject, stats, threshold = 75 }) => {
   if (!stats) return null;
   const { currentLoad, presentCount } = stats;
+  // Note: We ignore stats.remainingAllowed because we want this to update instantly with the slider
 
   // Recalculate based on dynamic threshold
-  // Formula: How many more classes can I miss?
-  // Safe Bunks = floor(Present / Threshold) - Total
-  const safeBunks = Math.floor(presentCount / (threshold / 100)) - currentLoad;
-  const remainingAllowed = safeBunks;
+  // Formula: How many more classes can I miss RIGHT NOW?
+  // Safe Bunks = floor(Present / (Threshold/100)) - Total
+  // Example: Present=6, Threshold=0.75. 6/0.75 = 8. 8-7=1 bunk.
+  const calculatedBunks = Math.floor(presentCount / (threshold / 100)) - currentLoad;
   const presentPercent = currentLoad > 0 ? Math.round((presentCount / currentLoad) * 100) : 0;
 
   return (
@@ -39,15 +40,15 @@ const SubjectCard = ({ subject, stats, threshold = 75 }) => {
         </div>
         <div>
            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Remaining Bunks</p>
-           <p className={`font-medium ${remainingAllowed < 0 ? 'text-destructive' : 'text-foreground'}`}>
-             {remainingAllowed}
+           <p className={`font-medium ${calculatedBunks < 0 ? 'text-destructive' : 'text-foreground'}`}>
+             {calculatedBunks}
            </p>
         </div>
       </div>
 
       <div className="pt-4 border-t border-border flex justify-between items-center">
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${remainingAllowed < 0 ? 'badge-danger' : 'badge-success'}`}>
-            {remainingAllowed < 0 ? 'Shortage!' : 'On Track'}
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${calculatedBunks < 0 ? 'badge-danger' : 'badge-success'}`}>
+            {calculatedBunks < 0 ? 'Shortage!' : 'On Track'}
         </span>
         <Link
             to={`/subjects/${subject._id}`}
