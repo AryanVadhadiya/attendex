@@ -45,7 +45,7 @@ const SubjectCard = ({ subject, stats, threshold = 75 }) => {
         </div>
         <div>
            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-             Remaining Bunks <span className="text-[10px] opacity-50">(T:{threshold}%, L:{baseLoad})</span>
+              Remaining Bunks
            </p>
            <p className={`font-medium ${calculatedBunks < 0 ? 'text-destructive' : 'text-foreground'}`}>
              {calculatedBunks}
