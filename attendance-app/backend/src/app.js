@@ -56,12 +56,27 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Server Error', error: err.message });
 });
 
-// For Vercel Serverless: Connect to DB if not already connected
+// MongoDB Connection for Vercel/Serverless
 const MONGO_URI = process.env.MONGO_URI;
-if (process.env.NODE_ENV === 'production') {
-  mongoose.connect(MONGO_URI)
-    .then(() => console.log('MongoDB Connected (Serverless)'))
-    .catch(err => console.error('MongoDB Connection Error:', err));
-}
+
+const connectDB = async () => {
+  if (mongoose.connection.readyState >= 1) return;
+
+  try {
+    if (!MONGO_URI) {
+      throw new Error('MONGO_URI is not defined in environment variables');
+    }
+    await mongoose.connect(MONGO_URI);
+    console.log('MongoDB Connected 🚀');
+  } catch (err) {
+    console.error('MongoDB Connection Error:', err.message);
+  }
+};
+
+// Middleware to ensure DB is connected
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
 
 module.exports = app;
