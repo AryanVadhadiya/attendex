@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSWRConfig } from 'swr';
 import api from '../services/api';
 import { useAttendanceByDate } from '../hooks/useAttendanceData';
 import dayjs from 'dayjs';
@@ -11,6 +12,7 @@ const TodayPage = () => {
 
   // SWR Hook
   const { occurrences, loading: loadingSessions, mutate } = useAttendanceByDate(date);
+  const { mutate: globalMutate } = useSWRConfig();
 
   const [sessions, setSessions] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -62,6 +64,7 @@ const TodayPage = () => {
       await api.post('/attendance/bulk', { entries });
       alert("Attendance Saved!");
       mutate();
+      globalMutate('/stats/dashboard?threshold=75'); // Invalidate Dashboard Stats
     } catch (err) {
       alert("Failed to save");
     } finally {

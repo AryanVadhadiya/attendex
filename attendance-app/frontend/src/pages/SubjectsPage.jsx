@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { subjectApi } from '../services/api';
+import { useSWRConfig } from 'swr';
 import { useSubjects, useUserProfile } from '../hooks/useAttendanceData';
 import { Loader2, Plus, Trash2, BookOpen, Pencil, Lock } from 'lucide-react';
 import clsx from 'clsx';
@@ -8,6 +9,7 @@ import { Link } from 'react-router-dom';
 
 const SubjectsPage = () => {
     const { subjects = [], loading: subjectsLoading, mutate } = useSubjects();
+    const { mutate: globalMutate } = useSWRConfig();
     const { user, loading: userLoading } = useUserProfile();
 
     // Derived state
@@ -56,6 +58,8 @@ const SubjectsPage = () => {
             setShowForm(false);
             setEditingId(null);
             mutate();
+            globalMutate('/stats/dashboard?threshold=75');
+            globalMutate('/timetable');
         } catch (err) {
             alert('Failed to save subject');
         } finally {

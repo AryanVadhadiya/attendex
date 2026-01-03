@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSWRConfig } from 'swr';
 import { Link } from 'react-router-dom';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import api, { subjectApi, userApi } from '../services/api';
@@ -17,6 +18,7 @@ const TimetablePage = () => {
     const { user, mutate: mutateUser } = useUserProfile();
     const { holidays: serverHolidays } = useHolidays(); // Read-only from server initially
     const { slots: serverSlots, loading: slotsLoading, mutate: mutateTimetable } = useTimetable();
+    const { mutate: globalMutate } = useSWRConfig();
 
     // Derived State
     const isLocked = user && user.isTimetableLocked;
@@ -174,10 +176,13 @@ const TimetablePage = () => {
                   if (confirm(res.data.message)) {
                       await api.post('/timetable/publish', { ...payload, confirmAutoMark: true });
                       alert("Published & Auto-Marked!");
+                      // Invalidate everything as this changes attendance
+                      globalMutate(key => true); // Invalidate ALL SWR keys (safest for major operation)
                   }
               } else {
                   alert("Published successfully!");
                   setInitialStartDate(startDate); // Update local initial state
+                  globalMutate('/stats/dashboard?threshold=75'); // Invalidate dashboard
               }
           } catch (err) {
               if (err.response?.status === 409 && err.response.data.requiresForceReset) {
