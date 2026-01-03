@@ -35,4 +35,8 @@ const weeklySlotSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// Optimization Indexes
+weeklySlotSchema.index({ userId: 1 });
+weeklySlotSchema.index({ userId: 1, dayOfWeek: 1 });
+
 module.exports = mongoose.model('WeeklySlot', weeklySlotSchema);

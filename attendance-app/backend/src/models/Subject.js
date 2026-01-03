@@ -31,4 +31,7 @@ const subjectSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// Optimization Index
+subjectSchema.index({ ownerId: 1 });
+
 module.exports = mongoose.model('Subject', subjectSchema);

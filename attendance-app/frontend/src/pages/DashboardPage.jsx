@@ -12,17 +12,17 @@ const DashboardPage = () => {
   const [error, setError] = useState(null);
   const [threshold, setThreshold] = useState(80);
 
-  const fetchData = useCallback(async (currentThreshold) => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await statsApi.dashboard({ threshold: currentThreshold || threshold });
+      const res = await statsApi.dashboard({ threshold: 75 });
       setData(res.data);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [threshold]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -30,7 +30,6 @@ const DashboardPage = () => {
 
   const handleThresholdChange = (val) => {
     setThreshold(val);
-    fetchData(val);
   };
 
   if (loading && !data) {
@@ -183,20 +182,34 @@ const DashboardPage = () => {
           <p className="text-xs text-muted-foreground mt-1">scheduled this semester</p>
         </div>
 
-        <div className="stat-card">
-          <div className="flex items-center gap-2 mb-2">
-            <XCircle className="w-4 h-4 text-muted-foreground" />
-            <p className="text-sm font-medium text-muted-foreground">Missed Classes</p>
-          </div>
-          <p className={`text-3xl font-bold ${global.absentCount > 0 ? 'text-destructive' : 'text-foreground'}`}>
-            {global.absentCount}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {global.remainingAllowed >= 0
-              ? `${global.remainingAllowed} more allowed`
-              : `${Math.abs(global.remainingAllowed)} over limit`}
-          </p>
-        </div>
+        {/* Derived Global Stats */}
+        {(() => {
+             // Local Calculation to avoid server roundtrip
+             const totalLoad = global.totalLoad || 0;
+             const absentCount = global.absentCount || 0;
+
+             const reqPercent = threshold;
+             const requiredClasses = Math.ceil(totalLoad * (reqPercent / 100));
+             const semesterBudget = totalLoad - requiredClasses;
+             const remainingAllowed = semesterBudget - absentCount;
+
+             return (
+                 <div className="stat-card">
+                  <div className="flex items-center gap-2 mb-2">
+                    <XCircle className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">Missed Classes</p>
+                  </div>
+                  <p className={`text-3xl font-bold ${absentCount > 0 ? 'text-destructive' : 'text-foreground'}`}>
+                    {absentCount}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {remainingAllowed >= 0
+                      ? `${remainingAllowed} more allowed`
+                      : `${Math.abs(remainingAllowed)} over limit`}
+                  </p>
+                </div>
+             );
+        })()}
       </div>
 
       {/* Subjects Grid */}
@@ -216,7 +229,12 @@ const DashboardPage = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {subjects.map((item) => (
-            <SubjectCard key={item.subject._id} subject={item.subject} stats={item.stats} />
+            <SubjectCard
+                key={item.subject._id}
+                subject={item.subject}
+                stats={item.stats}
+                threshold={threshold}
+            />
           ))}
         </div>
       )}

@@ -15,7 +15,9 @@ const USER_TZ = 'Asia/Kolkata';
 // Save weekly slots (Template)
 const getTimetable = async (req, res) => {
   try {
-    const slots = await WeeklySlot.find({ userId: req.user._id }).populate('subjectId', 'name color code');
+    const slots = await WeeklySlot.find({ userId: req.user._id })
+        .populate('subjectId', 'name color code')
+        .lean();
     res.json(slots);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
