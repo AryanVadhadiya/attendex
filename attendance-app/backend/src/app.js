@@ -9,10 +9,11 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 
 // Middleware
-// CORS first - Allow all origins in development
+// CORS configuration
 app.use(cors({
-  origin: true,
-  credentials: true
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Helmet with relaxed settings for development
