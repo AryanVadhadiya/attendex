@@ -41,6 +41,18 @@ app.get('/', (req, res) => {
   res.send('Attendance App Backend is Running 🚀 [v2.1]');
 });
 
+// Debug endpoint
+app.get('/debug', async (req, res) => {
+  const status = {
+    mongoUriExists: !!process.env.MONGO_URI,
+    mongoUriLength: process.env.MONGO_URI ? process.env.MONGO_URI.length : 0,
+    mongoUriPreview: process.env.MONGO_URI ? process.env.MONGO_URI.substring(0, 50) + '...' : 'NOT SET',
+    mongooseState: mongoose.connection.readyState,
+    mongooseStates: { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' }
+  };
+  res.json(status);
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth.routes'));
 const subjectRoutes = require('./routes/subject.routes');
