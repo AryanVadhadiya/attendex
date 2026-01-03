@@ -1,82 +1,64 @@
-require('dotenv').config();
 const mongoose = require('mongoose');
-const Subject = require('./src/models/Subject');
-const WeeklySlot = require('./src/models/WeeklySlot');
-const HolidayRange = require('./src/models/HolidayRange');
-const User = require('./src/models/User');
 const fs = require('fs');
-const path = require('path');
 
-async function restoreBackup(email, backupFilePath) {
-    try {
-        await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/attendance_db');
-        console.log('Connected to MongoDB');
+const MONGO_URI = 'mongodb+srv://aryanvadhadiya1_db_user:ZkFp9VS4a1flUCRc@cluster0.y2ecgli.mongodb.net/attendance_db?retryWrites=true&w=majority&appName=Cluster0';
+const NEW_USER_ID = '695983adf5ccdeba211397c5'; // demo1@gmail.com
 
-        const user = await User.findOne({ email });
-        if (!user) {
-            console.error(`User with email ${email} not found. Please create the user first.`);
-            process.exit(1);
-        }
-        const newUserId = user._id;
+async function restoreBackup() {
+  try {
+    await mongoose.connect(MONGO_URI);
+    console.log('Connected to MongoDB\n');
 
-        const backupData = JSON.parse(fs.readFileSync(backupFilePath, 'utf8'));
+    // Load backup
+    const backup = JSON.parse(fs.readFileSync('../user_backup_abcd.json', 'utf8'));
 
-        // 1. Restore Subjects
-        console.log('Restoring subjects...');
-        const subjectIdMap = {}; // Map old subject IDs to new ones
-        for (const sub of backupData.subjects) {
-            const oldId = sub._id;
-            delete sub._id;
-            delete sub.__v;
-            delete sub.createdAt;
-            delete sub.updatedAt;
-            sub.ownerId = newUserId;
+    const Subject = mongoose.model('Subject', new mongoose.Schema({}, { strict: false }));
+    const WeeklySlot = mongoose.model('WeeklySlot', new mongoose.Schema({}, { strict: false }));
+    const HolidayRange = mongoose.model('HolidayRange', new mongoose.Schema({}, { strict: false }));
 
-            const newSub = await Subject.create(sub);
-            subjectIdMap[oldId] = newSub._id;
-        }
+    // Create subject mapping (old ID -> new ID)
+    const subjectMap = {};
 
-        // 2. Restore Timetable
-        console.log('Restoring timetable slots...');
-        for (const slot of backupData.timetable) {
-            delete slot._id;
-            delete slot.__v;
-            delete slot.createdAt;
-            delete slot.updatedAt;
-            slot.userId = newUserId;
-            slot.subjectId = subjectIdMap[slot.subjectId]; // Map to new subject ID
+    console.log('📚 Importing Subjects...');
+    for (const subject of backup.subjects) {
+      const oldId = subject._id;
+      delete subject._id;
+      subject.ownerId = NEW_USER_ID;
 
-            if (slot.subjectId) {
-                await WeeklySlot.create(slot);
-            }
-        }
-
-        // 3. Restore Holidays
-        console.log('Restoring holidays...');
-        await HolidayRange.deleteMany({ userId: newUserId }); // Clear defaults
-        for (const hol of backupData.holidays) {
-            delete hol._id;
-            delete hol.__v;
-            delete hol.createdAt;
-            delete hol.updatedAt;
-            hol.userId = newUserId;
-            await HolidayRange.create(hol);
-        }
-
-        console.log('Restore complete! 🚀');
-        process.exit(0);
-    } catch (err) {
-        console.error('Restore failed:', err);
-        process.exit(1);
+      const newSubject = await Subject.create(subject);
+      subjectMap[oldId] = newSubject._id.toString();
+      console.log(`  ✓ ${subject.name} (${subject.code})`);
     }
+
+    console.log('\n📅 Importing Timetable Slots...');
+    for (const slot of backup.timetable) {
+      delete slot._id;
+      slot.userId = NEW_USER_ID;
+      slot.subjectId = subjectMap[slot.subjectId]; // Map to new subject ID
+
+      await WeeklySlot.create(slot);
+    }
+    console.log(`  ✓ Imported ${backup.timetable.length} slots`);
+
+    console.log('\n🎉 Importing Holidays...');
+    for (const holiday of backup.holidays) {
+      delete holiday._id;
+      holiday.userId = NEW_USER_ID;
+
+      await HolidayRange.create(holiday);
+      console.log(`  ✓ ${holiday.reason}`);
+    }
+
+    console.log('\n✅ Backup restored successfully!');
+    console.log(`   - ${backup.subjects.length} subjects`);
+    console.log(`   - ${backup.timetable.length} timetable slots`);
+    console.log(`   - ${backup.holidays.length} holidays`);
+
+  } catch (err) {
+    console.error('❌ Error:', err.message);
+  } finally {
+    await mongoose.disconnect();
+  }
 }
 
-const email = process.argv[2];
-const filePath = process.argv[3] || '../user_backup_abcd.json';
-
-if (!email) {
-    console.log('Usage: node restore_backup.js <target_user_email> [backup_file_path]');
-    process.exit(1);
-}
-
-restoreBackup(email, path.resolve(filePath));
+restoreBackup();

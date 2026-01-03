@@ -38,7 +38,7 @@ app.use('/api', limiter);
 
 // Root Endpoint
 app.get('/', (req, res) => {
-  res.send('Attendance App Backend is Running 🚀 [v2.0]');
+  res.send('Attendance App Backend is Running 🚀 [v2.1]');
 });
 
 // Routes
