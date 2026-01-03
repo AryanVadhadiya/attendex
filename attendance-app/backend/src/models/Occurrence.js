@@ -43,4 +43,8 @@ const occurrenceSchema = new mongoose.Schema({
 // Ensure unique occurrence per slot per date
 occurrenceSchema.index({ date: 1, weeklySlotId: 1 }, { unique: true });
 
+// Performance Indexes
+occurrenceSchema.index({ userId: 1, isExcluded: 1, date: 1 });
+occurrenceSchema.index({ userId: 1, subjectId: 1, isExcluded: 1 });
+
 module.exports = mongoose.model('Occurrence', occurrenceSchema);

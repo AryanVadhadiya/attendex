@@ -5,12 +5,12 @@ const dayjs = require('dayjs');
 const { logAudit } = require('./audit.service');
 
 const calculateStats = async (userId, subjectId, startDate, endDate, threshold = 75) => {
-  // 1. Get ALL valid occurrences (for semester budget)
+  // 1. Get ALL valid occurrences count (for semester budget)
   const baseQuery = { userId, isExcluded: false };
   if (subjectId) baseQuery.subjectId = subjectId;
 
-  const allOccurrences = await Occurrence.find(baseQuery);
-  const totalSemesterLoad = allOccurrences.length;
+  // OPTIMIZATION: Use countDocuments instead of fetching all docs
+  const totalSemesterLoad = await Occurrence.countDocuments(baseQuery);
 
   // 2. Get current occurrences (till today)
   const currentQuery = { ...baseQuery, date: { $lte: new Date() } };
@@ -21,7 +21,11 @@ const calculateStats = async (userId, subjectId, startDate, endDate, threshold =
     };
   }
 
-  const currentOccurrences = await Occurrence.find(currentQuery);
+  // OPTIMIZATION: Fetch only necessary fields and use lean()
+  const currentOccurrences = await Occurrence.find(currentQuery)
+    .select('_id sessionType')
+    .lean();
+
   const currentLoad = currentOccurrences.length;
 
   if (totalSemesterLoad === 0) {
@@ -40,19 +44,33 @@ const calculateStats = async (userId, subjectId, startDate, endDate, threshold =
   }
 
   // 3. Get attendance records till now
+  // OPTIMIZATION: Use distinct/lean queries or optimized lookups
   const currentIds = currentOccurrences.map(occ => occ._id);
   const records = await AttendanceRecord.find({
     userId,
     occurrenceId: { $in: currentIds }
+  }).select('occurrenceId present').lean();
+
+  // Create Set for O(1) lookup
+  const presentSet = new Set();
+  records.forEach(r => {
+    if (r.present) presentSet.add(r.occurrenceId.toString());
   });
 
-  const recordMap = new Map();
-  records.forEach(r => recordMap.set(r.occurrenceId.toString(), r));
-
   let presentCount = 0;
+  let lectureLoad = 0;
+  let labLoad = 0;
+
+  // Single pass loop
   currentOccurrences.forEach(occ => {
-    const record = recordMap.get(occ._id.toString());
-    if (record && record.present) presentCount++;
+    // Count Types
+    if (occ.sessionType === 'lecture') lectureLoad++;
+    else if (occ.sessionType === 'lab') labLoad++;
+
+    // Count Present
+    if (presentSet.has(occ._id.toString())) {
+      presentCount++;
+    }
   });
 
   const absentCount = currentLoad - presentCount;
@@ -60,18 +78,9 @@ const calculateStats = async (userId, subjectId, startDate, endDate, threshold =
 
   // 4. Calculate Budgets based on Semester Load
   const requiredPercent = threshold || 75;
-  // Use Math.ceil on required classes to avoid floating point precision issues (e.g., 30 * 0.2 becoming 5.999)
   const requiredClasses = Math.ceil(totalSemesterLoad * (requiredPercent / 100));
   const semesterBudget = totalSemesterLoad - requiredClasses;
   const remainingAllowed = semesterBudget - absentCount;
-
-  // 5. Calculate session types
-  let lectureLoad = 0;
-  let labLoad = 0;
-  currentOccurrences.forEach(occ => {
-    if (occ.sessionType === 'lecture') lectureLoad++;
-    else if (occ.sessionType === 'lab') labLoad++;
-  });
 
   return {
     totalLoad: totalSemesterLoad,
@@ -89,7 +98,8 @@ const calculateStats = async (userId, subjectId, startDate, endDate, threshold =
 
 const bulkMarkAttendance = async (userId, entries) => {
   const ids = entries.map(e => e.occurrenceId);
-  const occurrences = await Occurrence.find({ _id: { $in: ids } });
+  // OPTIMIZATION: Lean and Select
+  const occurrences = await Occurrence.find({ _id: { $in: ids } }).select('subjectId').lean();
   const occMap = new Map(occurrences.map(o => [o._id.toString(), o]));
 
   const validOps = entries.map(entry => {
@@ -127,12 +137,11 @@ const bulkMarkAttendance = async (userId, entries) => {
 
 const getDashboardData = async (userId, threshold = 75) => {
   const Subject = require('../models/Subject');
-  // Dynamic import or move top if safe. Move top is better but let's keep scope clean for now.
 
-  const subjects = await Subject.find({ ownerId: userId });
+  // OPTIMIZATION: Lean query
+  const subjects = await Subject.find({ ownerId: userId }).lean();
 
   // Parallel fetch stats for each subject
-  // Optimization: Could do one big aggregation, but loop is fine for < 20 subjects.
   const subjectStats = await Promise.all(subjects.map(async (sub) => {
     const stats = await calculateStats(userId, sub._id, null, null, threshold);
     return {
