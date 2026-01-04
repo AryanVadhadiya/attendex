@@ -17,12 +17,16 @@ const DashboardPage = () => {
   // Preload other pages' data for snappy navigation
   useEffect(() => {
      // Preload immediately on mount
-      import('swr').then(({ preload }) => {
-          preload('/timetable', fetcher);
-          preload('/subjects', fetcher);
-          preload('/holidays', fetcher);
-          preload('/user/profile', fetcher);
-      });
+      const today = new Date().toISOString().split('T')[0]; // Simple YYYY-MM-DD
+      setTimeout(() => {
+          import('swr').then(({ preload }) => {
+              preload('/timetable', fetcher);
+              preload('/subjects', fetcher);
+              preload('/holidays', fetcher);
+              preload('/user/profile', fetcher);
+              preload(`/attendance?date=${today}`, fetcher);
+          });
+      }, 2000);
   }, []);
 
   const handleThresholdChange = (val) => {
