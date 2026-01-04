@@ -11,7 +11,7 @@ export const useDashboardStats = (threshold = 75) => {
   // and handle threshold math on client side (as we already implemented).
   // SWR key: '/stats/dashboard?threshold=75'
 
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
     `/stats/dashboard?threshold=75`,
     () => statsApi.dashboard({ threshold: 75 }).then(res => res.data),
     {
@@ -23,7 +23,7 @@ export const useDashboardStats = (threshold = 75) => {
 
   return {
     data,
-    loading: isLoading,
+    loading: isLoading || isValidating,
     error,
     mutate // For manual reload
   };
@@ -110,7 +110,8 @@ export const useRefreshData = () => {
     const { mutate } = useSWRConfig();
 
     return async () => {
-        const today = new Date().toISOString().split('T')[0];
+        const { default: dayjs } = await import('dayjs');
+        const today = dayjs().format('YYYY-MM-DD');
 
         // Trigger revalidation for all core keys
         // We use mutate(key) to mark them as expired and trigger a refetch
