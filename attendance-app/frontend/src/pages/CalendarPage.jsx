@@ -1,38 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSWRConfig } from 'swr';
-import { useHolidays } from '../hooks/useAttendanceData';
-import { userApi } from '../services/api';
-import api from '../services/api';
+import { useHolidays, useUserProfile } from '../hooks/useAttendanceData';
+import { api } from '../services/api';
 import { Loader2, Plus, Trash2, Calendar, Lock, CalendarDays } from 'lucide-react';
 import dayjs from 'dayjs';
 
 const CalendarPage = () => {
     const { holidays = [], loading: holidaysLoading, mutate } = useHolidays();
+    const { user, loading: userLoading } = useUserProfile();
     const { mutate: globalMutate } = useSWRConfig();
-    const [loading, setLoading] = useState(true);
+
+    // Derived state
+    const isLocked = user?.isTimetableLocked || false;
+    const isLoading = holidaysLoading || userLoading;
+
+    // Show form state
     const [showForm, setShowForm] = useState(false);
 
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [reason, setReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
-
-    const [isLocked, setIsLocked] = useState(false);
-
-    useEffect(() => {
-        fetchUserData();
-    }, []);
-
-    const fetchUserData = async () => {
-        try {
-            const userRes = await userApi.getProfile();
-            setIsLocked(userRes.data.isTimetableLocked);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -63,7 +51,9 @@ const CalendarPage = () => {
         }
     };
 
-    if (loading) {
+    // Only show full page loader if we have NO holiday data and are fetching it
+    // If we have cached holidays, show them immediately while refreshing
+    if (holidaysLoading && (!holidays || holidays.length === 0)) {
         return (
             <div className="flex h-64 items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
