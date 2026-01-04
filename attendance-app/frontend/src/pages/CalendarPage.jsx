@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useSWRConfig } from 'swr';
+import { useHolidays } from '../hooks/useAttendanceData';
 import { userApi } from '../services/api';
 import api from '../services/api';
 import { Loader2, Plus, Trash2, Calendar, Lock, CalendarDays } from 'lucide-react';
 import dayjs from 'dayjs';
 
 const CalendarPage = () => {
-    const [holidays, setHolidays] = useState([]);
+    const { holidays = [], loading: holidaysLoading, mutate } = useHolidays();
+    const { mutate: globalMutate } = useSWRConfig();
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
 
@@ -17,16 +20,12 @@ const CalendarPage = () => {
     const [isLocked, setIsLocked] = useState(false);
 
     useEffect(() => {
-        fetchData();
+        fetchUserData();
     }, []);
 
-    const fetchData = async () => {
+    const fetchUserData = async () => {
         try {
-            const [calRes, userRes] = await Promise.all([
-                api.get('/holidays'),
-                userApi.getProfile()
-            ]);
-            setHolidays(calRes.data);
+            const userRes = await userApi.getProfile();
             setIsLocked(userRes.data.isTimetableLocked);
         } catch (err) {
             console.error(err);
@@ -44,7 +43,8 @@ const CalendarPage = () => {
             setStartDate('');
             setEndDate('');
             setReason('');
-            fetchData();
+            mutate(); // Refresh holidays list
+            globalMutate('/stats/dashboard?threshold=75'); // Dashboard might change if holiday is today
         } catch (err) {
             alert('Failed to add holiday');
         } finally {
@@ -56,7 +56,8 @@ const CalendarPage = () => {
         if (!confirm('Remove this holiday? Occurrences during this period will be restored.')) return;
         try {
             await api.delete(`/holidays/${id}`);
-            fetchData();
+            mutate(); // Refresh list
+            globalMutate('/stats/dashboard?threshold=75');
         } catch (err) {
             alert('Failed to delete');
         }
