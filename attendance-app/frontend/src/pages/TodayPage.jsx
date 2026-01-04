@@ -14,7 +14,7 @@ const TodayPage = () => {
   const { occurrences, loading: loadingSessions, mutate } = useAttendanceByDate(date);
   const { mutate: globalMutate } = useSWRConfig();
 
-  const [sessions, setSessions] = useState([]);
+  const [sessions, setSessions] = useState(occurrences || []);
   const [submitting, setSubmitting] = useState(false);
 
   // Sync server data to local
