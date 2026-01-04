@@ -13,6 +13,22 @@ const DashboardPage = () => {
   const [threshold, setThreshold] = useState(80);
   const { data, loading, error } = useDashboardStats();
 
+  // Preload other pages' data for snappy navigation
+  // Preload other pages' data for snappy navigation
+  useEffect(() => {
+     // Preload immediately on mount
+      const today = new Date().toISOString().split('T')[0]; // Simple YYYY-MM-DD
+      setTimeout(() => {
+          import('swr').then(({ preload }) => {
+              preload('/timetable', fetcher);
+              preload('/subjects', fetcher);
+              preload('/holidays', fetcher);
+              preload('/user/profile', fetcher);
+              preload(`/attendance?date=${today}`, fetcher);
+          });
+      }, 2000);
+  }, []);
+
   const handleThresholdChange = (val) => {
     setThreshold(val);
   };

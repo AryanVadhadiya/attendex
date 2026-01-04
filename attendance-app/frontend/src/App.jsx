@@ -11,7 +11,6 @@ import TodayPage from './pages/TodayPage';
 import SubjectsPage from './pages/SubjectsPage';
 import SubjectDetailPage from './pages/SubjectDetailPage';
 import CalendarPage from './pages/CalendarPage';
-import GlobalDataLoader from './components/GlobalDataLoader';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -26,7 +25,6 @@ function App() {
       <ThemeProvider>
         <ToastProvider>
           <AuthProvider>
-            <GlobalDataLoader />
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
