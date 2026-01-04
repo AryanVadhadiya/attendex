@@ -25,8 +25,8 @@ const TimetablePage = () => {
 
     // Local State
     const [slots, setSlots] = useState([]);
-    const [startDate, setStartDate] = useState(dayjs().format('YYYY-MM-DD'));
-    const [endDate, setEndDate] = useState(dayjs().add(4, 'month').format('YYYY-MM-DD'));
+    const [startDate, setStartDate] = useState('2025-12-22');
+    const [endDate, setEndDate] = useState('2026-04-18');
     const [holidays, setHolidays] = useState([]); // Local editable state
     const [activeDrag, setActiveDrag] = useState(null);
     const [initialStartDate, setInitialStartDate] = useState(null);
