@@ -1,14 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDashboardStats } from '../hooks/useAttendanceData';
+import { api } from '../services/api';
 import SubjectCard from '../components/Dashboard/SubjectCard';
 import { Loader2, AlertCircle, TrendingUp, BookOpen, XCircle, Sparkles, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import UnmarkedAttendanceAlert from '../components/Dashboard/UnmarkedAttendanceAlert';
 import clsx from 'clsx';
 
+const fetcher = url => api.get(url).then(res => res.data);
+
 const DashboardPage = () => {
   const [threshold, setThreshold] = useState(80);
   const { data, loading, error } = useDashboardStats();
+
+  // Preload other pages' data for snappy navigation
+  useEffect(() => {
+    // Only preload if we have authenticated (dashboard loaded)
+    if (data) {
+        import('swr').then(({ preload }) => {
+            preload('/timetable', fetcher);
+            preload('/subjects', fetcher);
+            preload('/holidays', fetcher);
+            preload('/user/profile', fetcher);
+        });
+    }
+  }, [data]);
 
   const handleThresholdChange = (val) => {
     setThreshold(val);
