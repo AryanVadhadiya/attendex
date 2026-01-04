@@ -16,6 +16,7 @@ export const useDashboardStats = (threshold = 75) => {
     () => statsApi.dashboard({ threshold: 75 }).then(res => res.data),
     {
        revalidateOnFocus: true, // Auto Refresh when specific tab active
+       revalidateOnMount: true, // Always refresh when component mounts
        dedupingInterval: 60000, // Cache for 1 minute (prevents excessive calls)
     }
   );

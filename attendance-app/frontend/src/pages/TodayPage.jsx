@@ -66,9 +66,8 @@ const TodayPage = () => {
     try {
       await api.post('/attendance/bulk', { entries });
       toast.success("Attendance Saved Successfully");
-      mutate();
-      globalMutate('/stats/dashboard?threshold=75'); // Invalidate Dashboard Stats
-      refreshData();
+      await mutate(); // Update local list
+      await refreshData(); // Update global stats and other views
     } catch (err) {
       toast.error("Failed to save attendance");
     } finally {

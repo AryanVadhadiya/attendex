@@ -73,7 +73,7 @@ const SubjectDetailPage = () => {
             setEditedRecords({});
             setEditMode(false);
             toast.success("Attendance updated successfully");
-            refreshData();
+            await refreshData();
         } catch (err) {
             toast.error('Failed to save changes');
         } finally {
