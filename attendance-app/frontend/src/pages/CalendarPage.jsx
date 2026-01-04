@@ -10,7 +10,7 @@ const CalendarPage = () => {
     const { holidays = [], loading: holidaysLoading, mutate } = useHolidays();
     const { user, loading: userLoading } = useUserProfile();
     const { mutate: globalMutate } = useSWRConfig();
-    const { toast } = useToast();
+    const toast = useToast();
     const refreshData = useRefreshData();
 
     // Derived state

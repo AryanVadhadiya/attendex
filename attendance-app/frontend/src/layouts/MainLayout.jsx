@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api, statsApi } from '../services/api';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -11,6 +12,22 @@ const MainLayout = () => {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Global Preloading Logic
+  useEffect(() => {
+    const fetcher = url => api.get(url).then(res => res.data);
+    const today = new Date().toISOString().split('T')[0];
+
+    // Preload critical data patterns
+    import('swr').then(({ preload }) => {
+        preload('/timetable', fetcher);
+        preload('/subjects', fetcher);
+        preload('/holidays', fetcher);
+        preload('/user/profile', fetcher);
+        preload(`/attendance?date=${today}`, fetcher);
+        preload('/stats/dashboard?threshold=75', () => statsApi.dashboard({ threshold: 75 }).then(res => res.data));
+    });
+  }, []);
 
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },

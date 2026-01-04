@@ -9,7 +9,7 @@ const UnmarkedAttendanceAlert = () => {
     const [pending, setPending] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const { toast } = useToast();
+    const toast = useToast();
 
     useEffect(() => {
         fetchPending();

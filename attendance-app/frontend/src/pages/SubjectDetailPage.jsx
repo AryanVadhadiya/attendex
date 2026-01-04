@@ -17,7 +17,7 @@ const SubjectDetailPage = () => {
     const [editedRecords, setEditedRecords] = useState({});
     const [saving, setSaving] = useState(false);
     const [threshold, setThreshold] = useState(80); // Default 80%
-    const { toast } = useToast();
+    const toast = useToast();
     const refreshData = useRefreshData();
 
     const fetchData = useCallback(async () => {

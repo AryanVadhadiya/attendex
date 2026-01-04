@@ -21,7 +21,7 @@ const TimetablePage = () => {
     const { holidays: serverHolidays } = useHolidays(); // Read-only from server initially
     const { slots: serverSlots, loading: slotsLoading, mutate: mutateTimetable } = useTimetable();
     const { mutate: globalMutate } = useSWRConfig();
-    const { toast } = useToast();
+    const toast = useToast();
     const refreshData = useRefreshData();
 
     // Derived State

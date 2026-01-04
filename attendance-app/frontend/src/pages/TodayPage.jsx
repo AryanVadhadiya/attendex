@@ -14,7 +14,7 @@ const TodayPage = () => {
   // SWR Hook
   const { occurrences, loading: loadingSessions, mutate } = useAttendanceByDate(date);
   const { mutate: globalMutate } = useSWRConfig();
-  const { toast } = useToast();
+  const toast = useToast();
   const refreshData = useRefreshData();
 
   const [sessions, setSessions] = useState(occurrences || []);

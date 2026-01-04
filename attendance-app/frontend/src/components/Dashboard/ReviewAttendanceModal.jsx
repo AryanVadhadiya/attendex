@@ -9,7 +9,7 @@ import { useRefreshData } from '../../hooks/useAttendanceData';
 const ReviewAttendanceModal = ({ pending, onClose, onRefresh }) => {
     const [selections, setSelections] = useState({});
     const [submitting, setSubmitting] = useState(false);
-    const { toast } = useToast();
+    const toast = useToast();
     const refreshData = useRefreshData();
 
     const toggle = (id) => {

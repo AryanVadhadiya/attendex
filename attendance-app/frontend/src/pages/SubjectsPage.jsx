@@ -12,7 +12,7 @@ const SubjectsPage = () => {
     const { subjects = [], loading: subjectsLoading, mutate } = useSubjects();
     const { mutate: globalMutate } = useSWRConfig();
     const { user, loading: userLoading } = useUserProfile();
-    const { toast } = useToast();
+    const toast = useToast();
     const refreshData = useRefreshData();
 
     // Derived state
