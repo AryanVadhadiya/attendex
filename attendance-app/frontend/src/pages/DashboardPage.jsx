@@ -14,17 +14,16 @@ const DashboardPage = () => {
   const { data, loading, error } = useDashboardStats();
 
   // Preload other pages' data for snappy navigation
+  // Preload other pages' data for snappy navigation
   useEffect(() => {
-    // Only preload if we have authenticated (dashboard loaded)
-    if (data) {
-        import('swr').then(({ preload }) => {
-            preload('/timetable', fetcher);
-            preload('/subjects', fetcher);
-            preload('/holidays', fetcher);
-            preload('/user/profile', fetcher);
-        });
-    }
-  }, [data]);
+     // Preload immediately on mount
+      import('swr').then(({ preload }) => {
+          preload('/timetable', fetcher);
+          preload('/subjects', fetcher);
+          preload('/holidays', fetcher);
+          preload('/user/profile', fetcher);
+      });
+  }, []);
 
   const handleThresholdChange = (val) => {
     setThreshold(val);
