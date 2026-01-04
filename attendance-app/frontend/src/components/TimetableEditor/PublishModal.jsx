@@ -217,7 +217,7 @@ export default function PublishModal({ isOpen, step, message, onConfirm, onCance
                                         <XCircle className="w-8 h-8 text-destructive" />
                                     </div>
                                     <h3 className="text-lg font-semibold text-destructive mb-2">
-                                        {(step === 'error' && (message?.includes('Lock') || message?.includes('Unlock'))) ? 'Action Failed' : 'Publishing Failed'}
+                                        {(step === 'error' && (message?.toLowerCase().includes('lock') || message?.toLowerCase().includes('unlock'))) ? 'Action Failed' : 'Publishing Failed'}
                                     </h3>
                                     <p className="text-sm text-muted-foreground mb-6">
                                         {message || "An unexpected error occurred."}
