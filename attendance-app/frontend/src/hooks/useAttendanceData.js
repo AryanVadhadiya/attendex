@@ -93,7 +93,8 @@ export const useUserProfile = () => {
 // Holidays Hook
 export const useHolidays = () => {
     const { data, error, isLoading, mutate } = useSWR('/holidays', fetcher, {
-        revalidateOnFocus: false
+        revalidateOnFocus: false,
+        dedupingInterval: 300000 // 5 minutes cache (static data)
     });
     return {
         holidays: data,
