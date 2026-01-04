@@ -1,4 +1,4 @@
-import useSWR from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { api, statsApi } from '../services/api';
 
 // Fetcher function wrapper for Axios
@@ -101,5 +101,27 @@ export const useHolidays = () => {
         loading: isLoading,
         error,
         mutate
+    };
+};
+// Global Refresh Hook
+export const useRefreshData = () => {
+    const { mutate } = useSWRConfig();
+
+    return async () => {
+        const today = new Date().toISOString().split('T')[0];
+
+        // Trigger revalidation for all core keys
+        // We use mutate(key) to mark them as expired and trigger a refetch
+        const keys = [
+            '/timetable',
+            '/subjects',
+            '/holidays',
+            '/user/profile',
+            `/attendance?date=${today}`,
+            '/stats/dashboard?threshold=75'
+        ];
+
+        // Execute all refreshes in parallel
+        await Promise.all(keys.map(key => mutate(key)));
     };
 };

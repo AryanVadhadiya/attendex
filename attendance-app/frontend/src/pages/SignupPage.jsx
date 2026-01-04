@@ -8,6 +8,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { Loader2, ArrowRight, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useToast } from '../context/ToastContext';
 
 const schema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -20,6 +21,7 @@ const SignupPage = () => {
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -33,9 +35,11 @@ const SignupPage = () => {
       const res = await authApi.signup({ ...data, role: 'student' });
       // Auto login after signup
       login(res.data, res.data.accessToken, res.data.refreshToken);
+      toast.success("Account created successfully!");
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed');
+      toast.error(err.response?.data?.message || 'Signup failed');
     } finally {
       setIsLoading(false);
     }

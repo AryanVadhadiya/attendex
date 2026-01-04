@@ -2,15 +2,18 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { subjectApi } from '../services/api';
 import { useSWRConfig } from 'swr';
-import { useSubjects, useUserProfile } from '../hooks/useAttendanceData';
+import { useSubjects, useUserProfile, useRefreshData } from '../hooks/useAttendanceData';
 import { Loader2, Plus, Trash2, BookOpen, Pencil, Lock } from 'lucide-react';
 import clsx from 'clsx';
 import { Link } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
 
 const SubjectsPage = () => {
     const { subjects = [], loading: subjectsLoading, mutate } = useSubjects();
     const { mutate: globalMutate } = useSWRConfig();
     const { user, loading: userLoading } = useUserProfile();
+    const { toast } = useToast();
+    const refreshData = useRefreshData();
 
     // Derived state
     const loading = subjectsLoading || userLoading;
@@ -51,8 +54,10 @@ const SubjectsPage = () => {
         try {
             if (editingId) {
                 await subjectApi.update(editingId, data);
+                toast.success("Subject updated successfully");
             } else {
                 await subjectApi.create(data);
+                toast.success("Subject created successfully");
             }
             reset();
             setShowForm(false);
@@ -60,8 +65,9 @@ const SubjectsPage = () => {
             mutate();
             globalMutate('/stats/dashboard?threshold=75');
             globalMutate('/timetable');
+            refreshData();
         } catch (err) {
-            alert('Failed to save subject');
+            toast.error('Failed to save subject');
         } finally {
             setCreating(false);
         }
@@ -85,6 +91,9 @@ const SubjectsPage = () => {
 
     const handleDelete = async (id, e) => {
         if (e) e.preventDefault();
+        // Keep confirm as it's a destructive action, or replace with custom modal?
+        // User asked to replace errors/success alerts. Native confirm is arguably okay for major delete, but requested "apple type toast" implies better UI.
+        // For now, I will keep confirm for safety as it's blocking, but replace the error/success feedback.
         if (!confirm('Are you sure? This does NOT remove old attendance records but hides the subject from future.')) return;
         try {
             await subjectApi.delete(id);
@@ -93,8 +102,10 @@ const SubjectsPage = () => {
                 setShowForm(false);
                 setEditingId(null);
             }
+            toast.success("Subject deleted");
+            refreshData();
         } catch (err) {
-            alert('Failed to delete subject');
+            toast.error('Failed to delete subject');
         }
     };
 

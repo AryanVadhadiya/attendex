@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useSWRConfig } from 'swr';
-import { useHolidays, useUserProfile } from '../hooks/useAttendanceData';
+import { useHolidays, useUserProfile, useRefreshData } from '../hooks/useAttendanceData';
 import { api } from '../services/api';
 import { Loader2, Plus, Trash2, Calendar, Lock, CalendarDays } from 'lucide-react';
 import dayjs from 'dayjs';
+import { useToast } from '../context/ToastContext';
 
 const CalendarPage = () => {
     const { holidays = [], loading: holidaysLoading, mutate } = useHolidays();
     const { user, loading: userLoading } = useUserProfile();
     const { mutate: globalMutate } = useSWRConfig();
+    const { toast } = useToast();
+    const refreshData = useRefreshData();
 
     // Derived state
     const isLocked = user?.isTimetableLocked || false;
@@ -33,8 +36,10 @@ const CalendarPage = () => {
             setReason('');
             mutate(); // Refresh holidays list
             globalMutate('/stats/dashboard?threshold=75'); // Dashboard might change if holiday is today
+            toast.success("Holiday added successfully");
+            refreshData();
         } catch (err) {
-            alert('Failed to add holiday');
+            toast.error('Failed to add holiday');
         } finally {
             setSubmitting(false);
         }
@@ -46,8 +51,10 @@ const CalendarPage = () => {
             await api.delete(`/holidays/${id}`);
             mutate(); // Refresh list
             globalMutate('/stats/dashboard?threshold=75');
+            toast.success("Holiday removed");
+            refreshData();
         } catch (err) {
-            alert('Failed to delete');
+            toast.error('Failed to delete');
         }
     };
 

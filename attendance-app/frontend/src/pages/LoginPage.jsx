@@ -8,6 +8,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { Loader2, ArrowRight, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useToast } from '../context/ToastContext';
 
 const schema = z.object({
   email: z.string().email("Invalid email address"),
@@ -19,6 +20,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -30,9 +32,11 @@ const LoginPage = () => {
     try {
       const res = await authApi.login(data);
       login(res.data, res.data.accessToken, res.data.refreshToken);
+      toast.success("Welcome back!");
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
+      toast.error(err.response?.data?.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }

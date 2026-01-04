@@ -5,6 +5,8 @@ import { Loader2, ArrowLeft, CheckCircle2, XCircle, Edit3, Save, X, Info } from 
 import clsx from 'clsx';
 import dayjs from 'dayjs';
 import ProgressRing from '../components/Dashboard/ProgressRing';
+import { useToast } from '../context/ToastContext';
+import { useRefreshData } from '../hooks/useAttendanceData';
 
 const SubjectDetailPage = () => {
     const { id } = useParams();
@@ -15,6 +17,8 @@ const SubjectDetailPage = () => {
     const [editedRecords, setEditedRecords] = useState({});
     const [saving, setSaving] = useState(false);
     const [threshold, setThreshold] = useState(80); // Default 80%
+    const { toast } = useToast();
+    const refreshData = useRefreshData();
 
     const fetchData = useCallback(async () => {
         try {
@@ -68,8 +72,10 @@ const SubjectDetailPage = () => {
             await fetchData();
             setEditedRecords({});
             setEditMode(false);
+            toast.success("Attendance updated successfully");
+            refreshData();
         } catch (err) {
-            alert('Failed to save changes');
+            toast.error('Failed to save changes');
         } finally {
             setSaving(false);
         }

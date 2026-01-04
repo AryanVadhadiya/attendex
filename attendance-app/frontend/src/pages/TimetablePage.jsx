@@ -3,9 +3,11 @@ import { useSWRConfig } from 'swr';
 import { Link } from 'react-router-dom';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import api, { subjectApi, userApi } from '../services/api';
-import { useSubjects, useUserProfile, useTimetable, useHolidays } from '../hooks/useAttendanceData';
+import { useSubjects, useUserProfile, useTimetable, useHolidays, useRefreshData } from '../hooks/useAttendanceData';
 import DraggableSubject from '../components/TimetableEditor/DraggableSubject';
 import DroppableCell from '../components/TimetableEditor/DroppableCell';
+import PublishModal from '../components/TimetableEditor/PublishModal';
+import { useToast } from '../context/ToastContext';
 import { Loader2, Save, Lock, Unlock, X } from 'lucide-react';
 import dayjs from 'dayjs';
 
@@ -19,6 +21,8 @@ const TimetablePage = () => {
     const { holidays: serverHolidays } = useHolidays(); // Read-only from server initially
     const { slots: serverSlots, loading: slotsLoading, mutate: mutateTimetable } = useTimetable();
     const { mutate: globalMutate } = useSWRConfig();
+    const { toast } = useToast();
+    const refreshData = useRefreshData();
 
     // Derived State
     const isLocked = user && user.isTimetableLocked;
@@ -30,6 +34,14 @@ const TimetablePage = () => {
     const [holidays, setHolidays] = useState([]); // Local editable state
     const [activeDrag, setActiveDrag] = useState(null);
     const [initialStartDate, setInitialStartDate] = useState(null);
+
+    // Modal State
+    const [publishModal, setPublishModal] = useState({
+        isOpen: false,
+        step: 'idle', // idle, publishing, confirm_auto_mark, confirm_force_reset, success, error
+        message: '',
+        payload: null
+    });
 
     // Sync User Profile & Holidays
     useEffect(() => {
@@ -100,11 +112,11 @@ const TimetablePage = () => {
             if (sessionType === 'lab') {
                 const nextHourSlot = slots.find(s => s.day === day && s.hour === hour + 1);
                  if (nextHourSlot) {
-                     alert("Lab requires 2 consecutive slots!");
+                     toast.error("Lab requires 2 consecutive slots!");
                      return;
                  }
                  if (hour >= 18) {
-                     alert("Lab cannot fit at the end of the day!");
+                     toast.error("Lab cannot fit at the end of the day!");
                      return;
                  }
             }
@@ -145,55 +157,132 @@ const TimetablePage = () => {
     const toggleLock = async () => {
         try {
             const newState = !isLocked;
+
+            // Set initial modal state
+            setPublishModal({
+                isOpen: true,
+                step: newState ? 'locking' : 'unlocking',
+                message: '',
+                payload: null
+            });
+
             await userApi.updateProfile({ isTimetableLocked: newState });
-            mutateUser();
+            await mutateUser(); // Wait for data update
+            refreshData(); // Global refresh
+
+            // Success state
+            setPublishModal(prev => ({
+                ...prev,
+                step: newState ? 'lock_success' : 'unlock_success'
+            }));
+
+            // Close after delay
+            setTimeout(() => {
+                setPublishModal(prev => ({ ...prev, isOpen: false }));
+            }, 1000); // Faster closing for quick actions
         } catch (err) {
-            alert("Failed to update lock status");
+            setPublishModal({
+                isOpen: true,
+                step: 'error',
+                message: "Failed to update lock status: " + (err.response?.data?.message || err.message),
+                payload: null
+            });
+            // Also show toast for extra visibility if modal fails? No, modal is enough.
+            // The existing code sets modal state.
         }
     };
 
-     const handlePublish = async (forceReset = false) => {
-          // Transform slots to API format
-          const payload = {
-              startDate,
-              endDate,
-              forceReset,
-              weeklySlots: slots.map(s => ({
-                  dayOfWeek: DAYS.indexOf(s.day) + 1,
-                  startHour: s.hour,
-                  durationHours: s.sessionType === 'lab' ? 2 : 1,
-                  sessionType: s.sessionType,
-                  subjectId: s.subject._id
-              })),
-              holidays: holidays
-          };
+    // --- Publishing Logic with Modal ---
 
-          try {
-              await api.post('/timetable', { slots: payload.weeklySlots }); // Save template
-              const res = await api.post('/timetable/publish', { ...payload, confirmAutoMark: false });
+    const executePublish = async (payload, confirmAutoMark = false, forceReset = false) => {
+        try {
+            // If it's the initial call (not a retry), save the template first
+            if (!confirmAutoMark && !forceReset) {
+                 await api.post('/timetable', { slots: payload.weeklySlots });
+            }
 
-              if (res.data.requiresConfirmation) {
-                  if (confirm(res.data.message)) {
-                      await api.post('/timetable/publish', { ...payload, confirmAutoMark: true });
-                      alert("Published & Auto-Marked!");
-                      // Invalidate everything as this changes attendance
-                      globalMutate(key => true); // Invalidate ALL SWR keys (safest for major operation)
-                  }
-              } else {
-                  alert("Published successfully!");
-                  setInitialStartDate(startDate); // Update local initial state
-                  globalMutate('/stats/dashboard?threshold=75'); // Invalidate dashboard
-              }
-          } catch (err) {
-              if (err.response?.status === 409 && err.response.data.requiresForceReset) {
-                  if (confirm(err.response.data.message)) {
-                      handlePublish(true); // Retry with forceReset
-                  }
-              } else {
-                  alert("Error: " + (err.response?.data?.message || err.message));
-              }
-          }
-     };
+            const res = await api.post('/timetable/publish', {
+                ...payload,
+                confirmAutoMark,
+                forceReset
+            });
+
+            if (res.data.requiresConfirmation) {
+                setPublishModal({
+                    isOpen: true,
+                    step: 'confirm_auto_mark',
+                    message: res.data.message,
+                    payload: payload
+                });
+            } else {
+                // Success!
+                setPublishModal({ ...publishModal, step: 'success', isOpen: true });
+                setInitialStartDate(startDate);
+
+                // Refresh data
+                globalMutate(key => true);
+
+                // Close after delay
+                setTimeout(() => {
+                    setPublishModal(prev => ({ ...prev, isOpen: false }));
+                }, 2000);
+            }
+        } catch (err) {
+            if (err.response?.status === 409 && err.response.data.requiresForceReset) {
+                setPublishModal({
+                    isOpen: true,
+                    step: 'confirm_force_reset',
+                    message: err.response.data.message,
+                    payload: payload
+                });
+            } else {
+                setPublishModal({
+                    isOpen: true,
+                    step: 'error',
+                    message: "Error: " + (err.response?.data?.message || err.message),
+                    payload: null
+                });
+            }
+        }
+    };
+
+    const handlePublishClick = () => {
+        const payload = {
+            startDate,
+            endDate,
+            weeklySlots: slots.map(s => ({
+                dayOfWeek: DAYS.indexOf(s.day) + 1,
+                startHour: s.hour,
+                durationHours: s.sessionType === 'lab' ? 2 : 1,
+                sessionType: s.sessionType,
+                subjectId: s.subject._id
+            })),
+            holidays: holidays
+        };
+
+        setPublishModal({
+            isOpen: true,
+            step: 'publishing',
+            message: '',
+            payload: payload
+        });
+
+        executePublish(payload);
+    };
+
+    const handleModalConfirm = () => {
+        if (publishModal.step === 'confirm_auto_mark') {
+            setPublishModal(prev => ({ ...prev, step: 'publishing' }));
+            executePublish(publishModal.payload, true, false);
+        } else if (publishModal.step === 'confirm_force_reset') {
+            setPublishModal(prev => ({ ...prev, step: 'publishing' }));
+            executePublish(publishModal.payload, false, true);
+        }
+    };
+
+    const handleModalCancel = () => {
+        setPublishModal(prev => ({ ...prev, isOpen: false }));
+    };
 
     if (loading) {
         return (
@@ -370,7 +459,7 @@ const TimetablePage = () => {
                             </div>
 
                             <button
-                                onClick={() => handlePublish(false)}
+                                onClick={handlePublishClick}
                                 className="btn-accent w-full py-2 flex items-center justify-center text-xs font-bold"
                             >
                                 <Save className="w-3.5 h-3.5 mr-1.5" />
@@ -391,6 +480,15 @@ const TimetablePage = () => {
                     </div>
                 ) : null}
             </DragOverlay>
+
+            <PublishModal
+                isOpen={publishModal.isOpen}
+                step={publishModal.step}
+                message={publishModal.message}
+                onConfirm={handleModalConfirm}
+                onCancel={handleModalCancel}
+                onClose={handleModalCancel}
+            />
         </DndContext>
     );
 };

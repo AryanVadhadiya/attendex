@@ -3,10 +3,14 @@ import { X, CheckCircle2, Save, Loader2 } from 'lucide-react';
 import api, { attendanceApi } from '../../services/api';
 import dayjs from 'dayjs';
 import clsx from 'clsx';
+import { useToast } from '../../context/ToastContext';
+import { useRefreshData } from '../../hooks/useAttendanceData';
 
 const ReviewAttendanceModal = ({ pending, onClose, onRefresh }) => {
     const [selections, setSelections] = useState({});
     const [submitting, setSubmitting] = useState(false);
+    const { toast } = useToast();
+    const refreshData = useRefreshData();
 
     const toggle = (id) => {
         setSelections(prev => ({
@@ -32,11 +36,12 @@ const ReviewAttendanceModal = ({ pending, onClose, onRefresh }) => {
 
             onRefresh();
             onClose();
+            refreshData();
         } catch (err) {
             if (err.response && err.response.status === 403) {
-                alert("Cannot mark Present because Configuration is Locked. Unlock to edit past records.");
+                toast.error("Cannot mark Present: Configuration is Locked. Unlock to edit past records.", 5000);
             } else {
-                alert("Failed to save.");
+                toast.error("Failed to save changes.");
             }
         } finally {
             setSubmitting(false);

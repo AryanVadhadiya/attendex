@@ -3,11 +3,13 @@ import { attendanceApi } from '../../services/api';
 import { AlertCircle, Check, ListChecks } from 'lucide-react';
 import dayjs from 'dayjs';
 import ReviewAttendanceModal from './ReviewAttendanceModal';
+import { useToast } from '../../context/ToastContext';
 
 const UnmarkedAttendanceAlert = () => {
     const [pending, setPending] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const { toast } = useToast();
 
     useEffect(() => {
         fetchPending();
@@ -28,8 +30,9 @@ const UnmarkedAttendanceAlert = () => {
         try {
             await attendanceApi.acknowledge('all');
             setPending([]);
+            toast.success("Acknowledged all missed classes");
         } catch (err) {
-            alert('Failed to acknowledge');
+            toast.error('Failed to acknowledge');
         }
     };
 

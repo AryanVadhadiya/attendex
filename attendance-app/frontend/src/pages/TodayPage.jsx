@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useSWRConfig } from 'swr';
 import api from '../services/api';
-import { useAttendanceByDate } from '../hooks/useAttendanceData';
+import { useAttendanceByDate, useRefreshData } from '../hooks/useAttendanceData';
 import dayjs from 'dayjs';
 import { Loader2, CheckCircle2, XCircle, Calendar as CalendarIcon, Save, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import { Link } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
 
 const TodayPage = () => {
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
@@ -13,6 +14,8 @@ const TodayPage = () => {
   // SWR Hook
   const { occurrences, loading: loadingSessions, mutate } = useAttendanceByDate(date);
   const { mutate: globalMutate } = useSWRConfig();
+  const { toast } = useToast();
+  const refreshData = useRefreshData();
 
   const [sessions, setSessions] = useState(occurrences || []);
   const [submitting, setSubmitting] = useState(false);
@@ -62,11 +65,12 @@ const TodayPage = () => {
 
     try {
       await api.post('/attendance/bulk', { entries });
-      alert("Attendance Saved!");
+      toast.success("Attendance Saved Successfully");
       mutate();
       globalMutate('/stats/dashboard?threshold=75'); // Invalidate Dashboard Stats
+      refreshData();
     } catch (err) {
-      alert("Failed to save");
+      toast.error("Failed to save attendance");
     } finally {
       setSubmitting(false);
     }
