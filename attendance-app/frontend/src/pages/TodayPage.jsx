@@ -75,7 +75,7 @@ const TodayPage = () => {
     }
   };
 
-  if (loading && sessions.length === 0) {
+  if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />

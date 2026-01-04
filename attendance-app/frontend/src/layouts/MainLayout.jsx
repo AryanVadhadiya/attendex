@@ -7,6 +7,9 @@ import { LayoutDashboard, Calendar, CalendarDays, BookOpen, LogOut, Menu, X, Sun
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { preload } from 'swr';
+import dayjs from 'dayjs';
+
 const MainLayout = () => {
   const { logout, user } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -16,17 +19,16 @@ const MainLayout = () => {
   // Global Preloading Logic
   useEffect(() => {
     const fetcher = url => api.get(url).then(res => res.data);
-    const today = new Date().toISOString().split('T')[0];
+    const today = dayjs().format('YYYY-MM-DD');
 
-    // Preload critical data patterns
-    import('swr').then(({ preload }) => {
-        preload('/timetable', fetcher);
-        preload('/subjects', fetcher);
-        preload('/holidays', fetcher);
-        preload('/user/profile', fetcher);
-        preload(`/attendance?date=${today}`, fetcher);
-        preload('/stats/dashboard?threshold=75', () => statsApi.dashboard({ threshold: 75 }).then(res => res.data));
-    });
+    // Preload critical data
+    // We use the same keys as the hooks to ensure cache hits
+    preload('/timetable', fetcher);
+    preload('/subjects', fetcher);
+    preload('/holidays', fetcher);
+    preload('/user/profile', fetcher);
+    preload(`/attendance?date=${today}`, fetcher);
+    preload('/stats/dashboard?threshold=75', fetcher);
   }, []);
 
   const navItems = [
