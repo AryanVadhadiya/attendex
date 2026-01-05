@@ -20,6 +20,15 @@ const SubjectCard = ({ subject, stats, threshold = 75 }) => {
 
   const presentPercent = currentLoad > 0 ? Math.round((presentCount / currentLoad) * 100) : 0;
 
+  // Status logic: determine badge based on bunks remaining
+  const getStatus = () => {
+    if (calculatedBunks < 0) return { text: 'At Risk', color: 'bg-destructive/10 text-destructive' };
+    if (calculatedBunks <= Math.ceil(allowedMisses * 0.3)) return { text: 'Warning', color: 'bg-amber-500/10 text-amber-500' };
+    return { text: 'On Track', color: 'bg-accent/10 text-accent' };
+  };
+
+  const status = getStatus();
+
   return (
     <div className="relative overflow-hidden group transition-all duration-300 hover:scale-[1.01] rounded-3xl bg-card backdrop-blur-xl border border-border shadow-lg p-4 md:p-5">
       <div
@@ -29,8 +38,8 @@ const SubjectCard = ({ subject, stats, threshold = 75 }) => {
 
       {/* Header */}
       <div className="mb-3 md:mb-4">
-        <h3 className="font-semibold text-base md:text-lg text-foreground">{subject.name}</h3>
-        <p className="text-muted-foreground text-xs mt-0.5 uppercase tracking-wider font-mono">{subject.code}</p>
+        <h3 className="font-semibold text-sm md:text-base text-foreground">{subject.name}</h3>
+        <p className="text-muted-foreground text-[10px] md:text-xs mt-0.5 uppercase tracking-wider font-mono">{subject.code}</p>
       </div>
 
       {/* Main Content Grid: Left (Present) | Right (Safe to Miss) */}
@@ -41,7 +50,7 @@ const SubjectCard = ({ subject, stats, threshold = 75 }) => {
 
         {/* LEFT SIDE: Present */}
         <div className="flex flex-col">
-          <p className="text-xs sm:text-sm text-muted-foreground uppercase tracking-wider mb-2 text-center">
+          <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mb-2 text-center">
             Present
           </p>
 
@@ -58,8 +67,8 @@ const SubjectCard = ({ subject, stats, threshold = 75 }) => {
 
           {/* Present Stats - Centered */}
           <div className="flex flex-col items-center">
-            <p className="font-bold text-xl sm:text-2xl md:text-3xl text-foreground mb-1">{presentCount}/{currentLoad}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">
+            <p className="font-bold text-lg sm:text-xl md:text-2xl text-foreground mb-1.5">{presentCount}/{currentLoad}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
               ({stats.lectureLoad || 0} Lec + {stats.labLoad || 0} Lab)
             </p>
           </div>
@@ -67,7 +76,7 @@ const SubjectCard = ({ subject, stats, threshold = 75 }) => {
 
         {/* RIGHT SIDE: Safe to Miss */}
         <div className="flex flex-col">
-          <p className="text-xs sm:text-sm text-muted-foreground uppercase tracking-wider mb-2 md:mb-3 text-center">
+          <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mb-2 md:mb-3 text-center">
             Safe to miss
           </p>
 
@@ -75,18 +84,18 @@ const SubjectCard = ({ subject, stats, threshold = 75 }) => {
           <div className="flex items-center gap-2 sm:gap-3 justify-center">
             {/* Left: Large Number + units */}
             <div className="flex flex-col items-center">
-              <span className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-none ${calculatedBunks < 0 ? 'text-destructive' : 'text-accent'}`}>
+              <span className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-none ${calculatedBunks < 0 ? 'text-destructive' : 'text-accent'}`}>
                 {calculatedBunks}
               </span>
-              <p className="text-xs sm:text-sm md:text-base text-muted-foreground mt-1">units</p>
+              <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground mt-1">units</p>
             </div>
 
             {/* Right: Equivalence breakdown */}
             {calculatedBunks > 0 && (
-              <div className="text-xs sm:text-sm text-muted-foreground space-y-0.5 text-left">
+              <div className="text-[10px] sm:text-xs text-muted-foreground space-y-0.5 text-left">
                 <p className="whitespace-nowrap">≈ {lecturesOnly} lecture{lecturesOnly !== 1 ? 's' : ''}</p>
                 <p className="whitespace-nowrap">≈ {labsOnly} lab{labsOnly !== 1 ? 's' : ''}</p>
-                <p className="text-[10px] sm:text-xs leading-tight">
+                <p className="text-[9px] sm:text-[10px] leading-tight">
                   ≈ equivalent<br />
                   combination
                 </p>
@@ -98,12 +107,8 @@ const SubjectCard = ({ subject, stats, threshold = 75 }) => {
 
       {/* Footer */}
       <div className="pt-4 border-t border-border flex justify-between items-center">
-        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-          calculatedBunks < 0
-            ? 'bg-destructive/10 text-destructive'
-            : 'bg-accent/10 text-accent'
-        }`}>
-          {calculatedBunks < 0 ? 'At Risk' : 'On Track'}
+        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${status.color}`}>
+          {status.text}
         </span>
         <Link
           to={`/subjects/${subject._id}`}

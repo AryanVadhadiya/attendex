@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { attendanceApi } from '../../services/api';
-import { AlertCircle, Check, ListChecks } from 'lucide-react';
+import { Info, Check, ListChecks } from 'lucide-react';
 import dayjs from 'dayjs';
 import ReviewAttendanceModal from './ReviewAttendanceModal';
 import { useToast } from '../../context/ToastContext';
@@ -45,16 +45,16 @@ const UnmarkedAttendanceAlert = () => {
 
     return (
         <>
-            <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-4 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in">
+            <div className="bg-accent/10 border border-accent/30 rounded-2xl p-4 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in">
                 <div className="flex items-start gap-3">
-                    <div className="p-2 bg-destructive/20 text-destructive rounded-xl shrink-0">
-                        <AlertCircle className="w-5 h-5" />
+                    <div className="p-2 bg-accent/20 text-accent rounded-xl shrink-0">
+                        <Info className="w-5 h-5" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-foreground">Missed Attendance Detected</h3>
+                        <h3 className="font-semibold text-foreground">Auto-Marked Attendance</h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                            You forgot to mark attendance for <b className="text-foreground">{pending.length} classes</b> on {dateText}.
-                            They have been marked as <span className="font-medium text-destructive">Absent</span> by default.
+                            You didn't mark attendance for <b className="text-foreground">{pending.length} classes</b> on {dateText}.
+                            They have been marked as <span className="font-medium text-accent">Present</span> by default.
                         </p>
                     </div>
                 </div>
@@ -67,7 +67,7 @@ const UnmarkedAttendanceAlert = () => {
                     </button>
                     <button
                         onClick={handleAcknowledgeAll}
-                        className="btn-primary flex-1 md:flex-none flex items-center justify-center bg-destructive hover:bg-destructive/90"
+                        className="btn-accent flex-1 md:flex-none flex items-center justify-center"
                     >
                         <Check className="w-4 h-4 mr-2" /> OK
                     </button>

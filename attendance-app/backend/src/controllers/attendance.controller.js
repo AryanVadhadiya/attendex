@@ -134,7 +134,7 @@ const getPendingAttendance = async (req, res) => {
     const pendingRecords = await AttendanceRecord.find({
       userId: req.user._id,
       isAutoMarked: true,
-      present: false
+      present: true
     })
     .populate({
       path: 'occurrenceId',

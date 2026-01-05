@@ -365,7 +365,7 @@ const autoMarkMissedClasses = async (userId, cutoffDate = new Date()) => {
       update: {
         $setOnInsert: {
           subjectId: occ.subjectId,
-          present: false,
+          present: true,
           createdBy: 'system-auto',
           isAutoMarked: true,
           isGranted: false

@@ -10,6 +10,7 @@ import { useToast } from '../context/ToastContext';
 
 const TodayPage = () => {
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // SWR Hook
   const { occurrences, loading: loadingSessions, mutate } = useAttendanceByDate(date);
@@ -27,10 +28,11 @@ const TodayPage = () => {
   useEffect(() => {
     if (occurrences) {
       setSessions(occurrences);
+      setIsNavigating(false); // Data loaded, stop showing loading state
     }
   }, [occurrences]);
 
-  const loading = loadingSessions && sessions.length === 0;
+  const loading = loadingSessions || isNavigating;
 
   // Log how long it takes after Prev/Next navigation until data is ready
   useEffect(() => {
@@ -61,11 +63,13 @@ const TodayPage = () => {
   const shiftDate = (days) => {
     // Start timer when user presses Prev/Next
     navTimerRef.current = performance.now();
+    setIsNavigating(true); // Show loading state immediately
     const newDate = dayjs(date).add(days, 'day').format('YYYY-MM-DD');
     setDate(newDate);
   };
 
   const setToday = () => {
+    setIsNavigating(true);
     setDate(dayjs().format('YYYY-MM-DD'));
   };
 
@@ -266,8 +270,8 @@ const TodayPage = () => {
                   className={clsx(
                     "group flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all",
                     isPresent
-                      ? "bg-accent/5 border-accent/30 shadow-sm"
-                      : "bg-card border-border hover:border-muted-foreground/30"
+                      ? "bg-accent/10 border-accent/40 shadow-sm"
+                      : "bg-destructive/10 border-destructive/40 hover:border-destructive/50"
                   )}
                 >
                   <div className="flex items-center">
