@@ -79,7 +79,7 @@ const publishTimetable = async (req, res) => {
 
     // 1. Check if Start Date is being changed
     if (user.semesterStartDate) {
-      const existingStart = dayjs(user.semesterStartDate).format('YYYY-MM-DD');
+      const existingStart = dayjs(user.semesterStartDate).tz(USER_TZ).format('YYYY-MM-DD');
       const newStart = requestedStart.format('YYYY-MM-DD');
 
       if (existingStart !== newStart) {
@@ -195,7 +195,7 @@ const publishTimetable = async (req, res) => {
 
     // 3. Handle Auto-Mark Logic (only on first publish or explicit reset)
     let autoMarkedCount = 0;
-    const autoMarkEligible = requestedStart.isBefore(today, 'day') && (!user.semesterStartDate || forceReset);
+    const autoMarkEligible = requestedStart.isBefore(today, 'day') && (forceReset || !user.semesterStartDate);
     if (autoMarkEligible) {
       if (!confirmAutoMark) {
         return res.status(200).json({
@@ -212,7 +212,7 @@ const publishTimetable = async (req, res) => {
         userId: req.user._id,
         date: {
           $gte: requestedStart.startOf('day').toDate(),
-          $lte: today.endOf('day').toDate()
+          $lt: today.startOf('day').toDate()
         },
         isExcluded: false
       })
