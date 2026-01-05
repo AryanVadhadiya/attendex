@@ -31,7 +31,8 @@ const ReviewAttendanceModal = ({ pending, onClose, onRefresh }) => {
             // Build entries for ALL pending items
             const entries = pending.map(p => ({
                 occurrenceId: p._id,
-                present: !absentIds.has(p._id) // If NOT in absentIds, it's present
+                present: !absentIds.has(p._id), // If NOT in absentIds, it's present
+                isAutoMarked: false // Clear the auto-mark flag
             }));
 
             await api.post('/attendance/bulk', { entries });
@@ -78,7 +79,7 @@ const ReviewAttendanceModal = ({ pending, onClose, onRefresh }) => {
                     </button>
                 </div>
 
-                <div className="p-4 overflow-y-auto flex-1 space-y-4">
+                <div className="p-4 overflow-y-auto flex-1 space-y-4 max-h-[60vh]">
                     <p className="text-sm text-muted-foreground mb-2 bg-accent/10 border border-accent/20 rounded-lg p-2">
                         All classes below are marked as <span className="text-accent font-medium">Present</span> by default.
                         Tap any to mark as <span className="text-destructive font-medium">Absent</span>.

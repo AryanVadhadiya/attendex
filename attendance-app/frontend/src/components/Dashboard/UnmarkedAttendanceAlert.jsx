@@ -51,7 +51,8 @@ const UnmarkedAttendanceAlert = () => {
         try {
             const entries = pending.map(p => ({
                 occurrenceId: p._id,
-                present: localSelections[p._id]
+                present: localSelections[p._id],
+                isAutoMarked: false // Clear auto-mark flag so dashboard counts these
             }));
             await api.post('/attendance/bulk', { entries });
             toast.success("Attendance saved successfully");
@@ -98,7 +99,7 @@ const UnmarkedAttendanceAlert = () => {
                 </div>
 
                 {/* Classes grouped by date */}
-                <div className="space-y-4 mb-4">
+                <div className="space-y-4 mb-4 max-h-[50vh] overflow-y-auto pr-2">
                     {sortedDates.map(dateKey => {
                         const items = groupedByDate[dateKey];
                         return (

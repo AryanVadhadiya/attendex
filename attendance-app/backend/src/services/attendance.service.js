@@ -115,15 +115,23 @@ const bulkMarkAttendance = async (userId, entries) => {
     const occ = occMap.get(entry.occurrenceId);
     if (!occ) return null;
 
+    const updateFields = {
+      present: entry.present,
+      createdBy: userId
+    };
+
+    // Allow frontend to specify isAutoMarked (e.g., to clear it), otherwise default to false
+    if (entry.hasOwnProperty('isAutoMarked')) {
+      updateFields.isAutoMarked = entry.isAutoMarked;
+    } else {
+      updateFields.isAutoMarked = false;
+    }
+
     return {
       updateOne: {
         filter: { occurrenceId: entry.occurrenceId, userId },
         update: {
-          $set: {
-            present: entry.present,
-            createdBy: userId,
-            isAutoMarked: false
-          },
+          $set: updateFields,
           $setOnInsert: {
             subjectId: occ.subjectId,
             isGranted: false

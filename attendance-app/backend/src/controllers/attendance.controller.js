@@ -139,7 +139,7 @@ const getPendingAttendance = async (req, res) => {
     .populate({
       path: 'occurrenceId',
       match: { isExcluded: false, date: { $lt: todayStart } },
-      select: 'subjectId date sessionType startHour',
+      select: 'subjectId date sessionType startHour durationHours',
       populate: { path: 'subjectId', select: 'name code color' }
     })
     .lean();
