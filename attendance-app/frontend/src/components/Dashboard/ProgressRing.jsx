@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 
-const ProgressRing = ({ percentage = 0, size = 60, strokeWidth = 5, hideText = false, threshold = 75 }) => {
+const ProgressRing = ({ percentage = 0, size = 60, strokeWidth = 5, hideText = false, threshold = 75, className = '' }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percentage / 100) * circumference;
@@ -15,7 +15,7 @@ const ProgressRing = ({ percentage = 0, size = 60, strokeWidth = 5, hideText = f
   const displayPercentage = typeof percentage === 'number' ? (percentage % 1 === 0 ? percentage : percentage.toFixed(1)) : percentage;
 
   return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+    <div className={clsx("relative flex items-center justify-center", className)} style={{ width: size, height: size }}>
       <svg className="transform -rotate-90 w-full h-full">
         <circle
           className={clsx("transition-colors duration-1000", color, "opacity-20")}

@@ -126,7 +126,6 @@ const bulkMarkAttendance = async (userId, entries) => {
           },
           $setOnInsert: {
             subjectId: occ.subjectId,
-            isAutoMarked: false,
             isGranted: false
           }
         },

@@ -221,17 +221,17 @@ const DashboardPage = () => {
       : 'text-destructive';
 
   return (
-    <div className="animate-in">
+    <div className="animate-in px-4 md:px-6 lg:px-0">
       <UnmarkedAttendanceAlert />
 
-      <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 glass rounded-2xl">
-            <Sparkles className="w-6 h-6 text-accent" />
+      <header className="mb-8 md:mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="p-2 md:p-3 glass rounded-2xl">
+            <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-accent" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Overview of your semester progress</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">Overview of your semester progress</p>
           </div>
         </div>
 
@@ -242,7 +242,7 @@ const DashboardPage = () => {
                 key={val}
                 onClick={() => handleThresholdChange(val)}
                 className={clsx(
-                  "px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                  "px-3 md:px-4 py-2 rounded-xl text-xs font-bold transition-all",
                   threshold === val
                     ? "bg-primary text-primary-foreground shadow-lg scale-105"
                     : "hover:bg-muted text-muted-foreground"
@@ -263,68 +263,68 @@ const DashboardPage = () => {
       </header>
 
       {/* Risk Summary - Instant Status */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="glass-card p-4 border-l-4 border-accent">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-accent/10 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-accent" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+        <div className="glass-card p-3 md:p-4 border-l-4 border-accent">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-accent/10 rounded-lg">
+              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-accent" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-xl md:text-2xl font-bold text-foreground">
                 {safeCount}
               </p>
-              <p className="text-xs text-muted-foreground">Safe Subjects</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Safe Subjects</p>
             </div>
           </div>
         </div>
 
-        <div className="glass-card p-4 border-l-4 border-amber-500">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500/10 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
+        <div className="glass-card p-3 md:p-4 border-l-4 border-amber-500">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-amber-500/10 rounded-lg">
+              <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-xl md:text-2xl font-bold text-foreground">
                 {warningCount}
               </p>
-              <p className="text-xs text-muted-foreground">Warning Zone</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Warning Zone</p>
             </div>
           </div>
         </div>
 
-        <div className="glass-card p-4 border-l-4 border-destructive">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-destructive/10 rounded-lg">
-              <XCircle className="w-5 h-5 text-destructive" />
+        <div className="glass-card p-3 md:p-4 border-l-4 border-destructive">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-destructive/10 rounded-lg">
+              <XCircle className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-xl md:text-2xl font-bold text-foreground">
                 {riskCount}
               </p>
-              <p className="text-xs text-muted-foreground">At Risk</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">At Risk</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Global Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
         {/* Main Stat - Accent Card */}
         <div className="stat-card-accent relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-4 h-4 opacity-70" />
-              <p className="text-sm font-medium opacity-80">Total Attendance</p>
+              <TrendingUp className="w-3 h-3 md:w-4 md:h-4 opacity-70" />
+              <p className="text-xs md:text-sm font-medium opacity-80">Total Attendance</p>
             </div>
             <div className="flex items-baseline gap-2">
-               <span className="text-4xl font-bold tracking-tight">
+               <span className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">
                 {typeof presentPercent === 'number' ? presentPercent.toFixed(1) : presentPercent}%
               </span>
-              <span className="text-sm opacity-60">average</span>
+              <span className="text-xs md:text-sm opacity-60">average</span>
             </div>
             {/* Progress bar */}
-            <div className="mt-4 h-1.5 bg-white/20 rounded-full overflow-hidden">
+            <div className="mt-3 md:mt-4 h-1 md:h-1.5 bg-white/20 rounded-full overflow-hidden">
               <div
                 className="h-full bg-white/80 rounded-full transition-all duration-700"
                 style={{ width: `${presentPercent}%` }}
@@ -336,23 +336,23 @@ const DashboardPage = () => {
         {/* Secondary Stats */}
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
-            <BookOpen className="w-4 h-4 text-muted-foreground" />
-            <p className="text-sm font-medium text-muted-foreground">Total Classes</p>
+            <BookOpen className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
+            <p className="text-xs md:text-sm font-medium text-muted-foreground">Total Classes</p>
           </div>
-          <p className="text-3xl font-bold text-foreground">{totalLoad}</p>
-          <p className="text-xs text-muted-foreground mt-1">scheduled this semester</p>
+          <p className="text-2xl sm:text-3xl font-bold text-foreground">{totalLoad}</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground mt-1">scheduled this semester</p>
         </div>
 
         {/* Derived Global Stats */}
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
-            <XCircle className="w-4 h-4 text-muted-foreground" />
-            <p className="text-sm font-medium text-muted-foreground">Missed Classes</p>
+            <XCircle className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
+            <p className="text-xs md:text-sm font-medium text-muted-foreground">Missed Classes</p>
           </div>
-          <p className={`text-3xl font-bold ${absentCount > 0 ? 'text-destructive' : 'text-foreground'}`}>
+          <p className={`text-2xl sm:text-3xl font-bold ${absentCount > 0 ? 'text-destructive' : 'text-foreground'}`}>
             {absentCount}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
             {remainingAllowed >= 0
               ? `${remainingAllowed} more allowed`
               : `${Math.abs(remainingAllowed)} over limit`}
@@ -375,7 +375,7 @@ const DashboardPage = () => {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {subjects.map((item) => {
             const isTarget = updatingSubjectId === item.subject._id;
             const shouldGlaze = isTarget && (isValidating || !hasValidatedRef.current);

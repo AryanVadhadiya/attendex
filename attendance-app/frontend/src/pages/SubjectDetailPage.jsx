@@ -210,7 +210,7 @@ const SubjectDetailPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 {/* Card 1: Current Status */}
                 <div className="glass-card p-5 flex flex-col">
-                    <h3 className="text-base font-bold text-muted-foreground uppercase tracking-widest mb-3 text-center">Current Status</h3>
+                    <h3 className="text-sm md:text-base font-bold text-muted-foreground uppercase tracking-widest mb-3 text-center">Current Status</h3>
 
                     {/* Progress Ring */}
                     <div className="flex justify-center mb-3">
@@ -222,25 +222,25 @@ const SubjectDetailPage = () => {
                                 hideText={true}
                             />
                             <div className="absolute inset-0 flex items-center justify-center flex-col">
-                                <span className="text-3xl font-bold text-foreground">{presentCount}</span>
+                                <span className="text-2xl md:text-3xl font-bold text-foreground">{presentCount}</span>
                                 <div className="h-px w-6 bg-border my-0.5" />
-                                <span className="text-sm text-muted-foreground">{currentLoad}</span>
+                                <span className="text-xs md:text-sm text-muted-foreground">{currentLoad}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Percentage */}
                     <div className="text-center mb-3">
-                        <p className="text-4xl font-bold text-foreground">
+                        <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">
                             {typeof stats?.presentPercent === 'number' ? stats.presentPercent.toFixed(1) : stats?.presentPercent}%
                         </p>
-                        <p className="text-sm text-muted-foreground mt-0.5">Present till today</p>
+                        <p className="text-xs md:text-sm text-muted-foreground mt-0.5">Present till today</p>
                     </div>
 
                     {/* Divider */}
                     <div className="border-t border-border/50 pt-3 mt-auto">
-                        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-2 text-primary">Class Summary</p>
-                        <div className="flex justify-between items-center text-base">
+                        <p className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-widest mb-2 text-primary">Class Summary</p>
+                        <div className="flex justify-between items-center text-sm md:text-base">
                             <span className="text-muted-foreground">Total Classes</span>
                             <span className="font-bold text-foreground">{currentLoad} / {totalLoad}</span>
                         </div>
@@ -249,7 +249,7 @@ const SubjectDetailPage = () => {
 
                 {/* Card 2: Bunk Usage + Safe to Miss + Equivalence (Merged) */}
                 <div className="glass-card p-5 flex flex-col">
-                    <h3 className="text-base font-bold text-muted-foreground uppercase tracking-widest mb-3 text-center text-destructive">Bunk Usage</h3>
+                    <h3 className="text-sm md:text-base font-bold text-muted-foreground uppercase tracking-widest mb-3 text-center text-destructive">Bunk Usage</h3>
 
                     {/* Compact Top Section: Ring + Percentage */}
                     <div className="flex items-center justify-center gap-4 mb-3">
@@ -261,22 +261,22 @@ const SubjectDetailPage = () => {
                                 hideText={true}
                             />
                             <div className="absolute inset-0 flex items-center justify-center flex-col">
-                                <span className="text-2xl font-bold text-foreground">{absentCount}</span>
+                                <span className="text-xl md:text-2xl font-bold text-foreground">{absentCount}</span>
                                 <div className="h-px w-5 bg-border my-0.5" />
-                                <span className="text-xs text-muted-foreground">{semesterBudget}</span>
+                                <span className="text-[10px] md:text-xs text-muted-foreground">{semesterBudget}</span>
                             </div>
                         </div>
                         <div className="text-left">
-                            <p className="text-4xl font-bold text-foreground">{bunkUsagePercent.toFixed(1)}%</p>
-                            <p className="text-sm text-muted-foreground">Budget Consumed</p>
+                            <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">{bunkUsagePercent.toFixed(1)}%</p>
+                            <p className="text-xs md:text-sm text-muted-foreground">Budget Consumed</p>
                         </div>
                     </div>
 
                     {/* Safe to Miss Section - Horizontal Layout */}
                     <div className="border-t border-border/50 pt-3">
                         <div className="flex justify-between items-center mb-2">
-                            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Safe to miss</p>
-                            <span className="text-xs font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                            <p className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-widest">Safe to miss</p>
+                            <span className="text-[10px] md:text-xs font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">
                                 {absentCount}/{semesterBudget} USED
                             </span>
                         </div>
@@ -286,25 +286,25 @@ const SubjectDetailPage = () => {
                             {/* Left: Large Number */}
                             <div className="flex items-end gap-1.5">
                                 <span className={clsx(
-                                    "text-5xl font-bold leading-none",
+                                    "text-3xl sm:text-4xl md:text-5xl font-bold leading-none",
                                     remainingAllowed < 0 ? "text-destructive" : "text-accent"
                                 )}>
                                     {remainingAllowed}
                                 </span>
-                                <span className="text-sm text-muted-foreground mb-1">{remainingAllowed === 1 ? 'unit' : 'units'}</span>
+                                <span className="text-xs md:text-sm text-muted-foreground mb-1">{remainingAllowed === 1 ? 'unit' : 'units'}</span>
                             </div>
 
                             {/* Right: Horizontal Equivalence Pills */}
                             {remainingAllowed > 0 && (
                                 <div className="flex-1 flex items-center gap-2">
                                     <div className="flex-1 text-center py-1.5 px-2 rounded-lg bg-muted/30 border border-border/50">
-                                        <p className="text-2xl font-bold text-foreground leading-none">{lecturesOnly}</p>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider mt-0.5">Lecture{lecturesOnly !== 1 ? 's' : ''}</p>
+                                        <p className="text-lg sm:text-xl md:text-2xl font-bold text-foreground leading-none">{lecturesOnly}</p>
+                                        <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-wider mt-0.5">Lecture{lecturesOnly !== 1 ? 's' : ''}</p>
                                     </div>
-                                    <span className="text-sm text-muted-foreground font-medium">or</span>
+                                    <span className="text-xs md:text-sm text-muted-foreground font-medium">or</span>
                                     <div className="flex-1 text-center py-1.5 px-2 rounded-lg bg-muted/30 border border-border/50">
-                                        <p className="text-2xl font-bold text-foreground leading-none">{labsOnly}</p>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider mt-0.5">Lab{labsOnly !== 1 ? 's' : ''}</p>
+                                        <p className="text-lg sm:text-xl md:text-2xl font-bold text-foreground leading-none">{labsOnly}</p>
+                                        <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-wider mt-0.5">Lab{labsOnly !== 1 ? 's' : ''}</p>
                                     </div>
                                 </div>
                             )}
