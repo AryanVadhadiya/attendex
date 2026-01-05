@@ -28,6 +28,24 @@ const userSchema = new mongoose.Schema({
   },
   semesterStartDate: {
     type: Date
+  },
+  semesterEndDate: {
+    type: Date
+  },
+  labUnitStrategy: {
+    type: String,
+    enum: ['nirma', 'custom'],
+    default: 'nirma'
+  },
+  labUnitValue: {
+    type: Number,
+    min: 1,
+    max: 4,
+    default: 1
+  },
+  labUnitLockedAt: {
+    type: Date,
+    default: null
   }
 }, { timestamps: true });
 

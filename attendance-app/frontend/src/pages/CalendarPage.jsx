@@ -35,9 +35,9 @@ const CalendarPage = () => {
             setEndDate('');
             setReason('');
             mutate(); // Refresh holidays list
-            globalMutate('/stats/dashboard?threshold=75'); // Dashboard might change if holiday is today
             toast.success("Holiday added successfully");
-            refreshData();
+            // Refresh other dependent data (dashboard, today, etc.)
+            await refreshData();
         } catch (err) {
             toast.error('Failed to add holiday');
         } finally {
@@ -50,9 +50,8 @@ const CalendarPage = () => {
         try {
             await api.delete(`/holidays/${id}`);
             mutate(); // Refresh list
-            globalMutate('/stats/dashboard?threshold=75');
             toast.success("Holiday removed");
-            refreshData();
+            await refreshData();
         } catch (err) {
             toast.error('Failed to delete');
         }
@@ -61,9 +60,30 @@ const CalendarPage = () => {
     // Only show full page loader if we have NO holiday data and are fetching it
     // If we have cached holidays, show them immediately while refreshing
     if (holidaysLoading && (!holidays || holidays.length === 0)) {
+        // Glazing skeleton for calendar & holidays page
         return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            <div className="max-w-4xl mx-auto animate-in space-y-6 p-4">
+                <div className="flex justify-between items-center mb-4 animate-pulse">
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-muted" />
+                            <div className="h-6 w-48 bg-muted rounded" />
+                        </div>
+                        <div className="h-4 w-64 bg-muted rounded" />
+                    </div>
+                    <div className="h-9 w-32 bg-muted rounded" />
+                </div>
+                <div className="card overflow-hidden animate-pulse">
+                    <div className="p-4 border-b border-border bg-muted flex items-center gap-2">
+                        <div className="w-4 h-4 rounded bg-muted/80" />
+                        <div className="h-4 w-40 bg-muted rounded" />
+                    </div>
+                    <div className="p-4 space-y-3">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="h-10 bg-muted rounded" />
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }

@@ -2,9 +2,10 @@ const { generateOccurrences } = require('../services/occurrence.service');
 const Occurrence = require('../models/Occurrence');
 const dayjs = require('dayjs');
 
-// Mock Mongoose model method
+// Mock Mongoose model methods used by generateOccurrences
 jest.mock('../models/Occurrence', () => ({
-  bulkWrite: jest.fn()
+  updateMany: jest.fn().mockResolvedValue({}),
+  bulkWrite: jest.fn().mockResolvedValue({})
 }));
 
 describe('Occurrence Service', () => {

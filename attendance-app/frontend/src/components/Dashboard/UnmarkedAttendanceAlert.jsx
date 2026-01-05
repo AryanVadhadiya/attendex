@@ -11,10 +11,6 @@ const UnmarkedAttendanceAlert = () => {
     const [showModal, setShowModal] = useState(false);
     const toast = useToast();
 
-    useEffect(() => {
-        fetchPending();
-    }, []);
-
     const fetchPending = async () => {
         try {
             const res = await attendanceApi.getPending();
@@ -25,6 +21,12 @@ const UnmarkedAttendanceAlert = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        // Fire once on mount; relies on backend-side caching and optimized queries
+        fetchPending();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleAcknowledgeAll = async () => {
         try {

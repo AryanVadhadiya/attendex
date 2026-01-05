@@ -11,7 +11,10 @@ router.use(protect);
 // Holiday Routes (cache GET)
 router.get(
 	'/holidays',
-	cacheMiddleware(() => 'calendar:holidays', 1800), // 30 min
+	cacheMiddleware(req => {
+		const userId = req.user && (req.user._id || req.user.id) ? (req.user._id || req.user.id).toString() : '';
+		return `calendar:holidays:user:${userId}`;
+	}, 1800), // 30 min
 	getHolidays
 );
 router.post('/holidays', createHoliday);
@@ -20,7 +23,10 @@ router.delete('/holidays/:id', deleteHoliday);
 // Granted Routes (cache GET)
 router.get(
 	'/granted',
-	cacheMiddleware(req => `calendar:granted:user:${req.user && req.user.id ? req.user.id : ''}`, 600),
+	cacheMiddleware(req => {
+		const userId = req.user && (req.user._id || req.user.id) ? (req.user._id || req.user.id).toString() : '';
+		return `calendar:granted:user:${userId}`;
+	}, 600),
 	getGranted
 );
 router.post('/granted', createGranted);

@@ -2,6 +2,7 @@ const User = require('../models/User');
 const generateTokens = require('../utils/generateTokens');
 const bcrypt = require('bcrypt');
 const Joi = require('joi');
+const jwt = require('jsonwebtoken');
 
 const registerUser = async (req, res) => {
   const schema = Joi.object({

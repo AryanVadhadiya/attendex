@@ -1,33 +1,67 @@
 // Redis cache wrapper using redis@4.x+ API
+// NOTE: Redis is OPTIONAL. If connection fails once, caching is disabled
+// so that API performance is not affected by Redis outages/misconfiguration.
 const { createClient } = require('redis');
 
-const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
-const REDIS_PORT = process.env.REDIS_PORT || 6379;
+const REDIS_HOST = process.env.REDIS_HOST;
+const REDIS_PORT = process.env.REDIS_PORT;
 const REDIS_USERNAME = process.env.REDIS_USERNAME || 'default';
 const REDIS_PASSWORD = process.env.REDIS_PASSWORD || undefined;
 
-const redisOptions = {
-  socket: {
-    host: REDIS_HOST,
-    port: REDIS_PORT,
-  },
-  username: REDIS_USERNAME,
-};
-if (REDIS_PASSWORD) redisOptions.password = REDIS_PASSWORD;
-
-const client = createClient(redisOptions);
-
-client.on('error', (err) => {
-  console.error('Redis Client Error', err);
-});
-
+let client = null;
 let isConnected = false;
-async function connectIfNeeded() {
-  if (!isConnected) {
-    await client.connect();
-    isConnected = true;
-    console.log('Redis Connected');
+let isDisabled = false;
+
+function createRedisClientIfConfigured() {
+  if (!REDIS_HOST || !REDIS_PORT) {
+    // No explicit Redis configuration -> disable cache
+    isDisabled = true;
+    return null;
   }
+
+  const redisOptions = {
+    socket: {
+      host: REDIS_HOST,
+      port: Number(REDIS_PORT),
+    },
+    username: REDIS_USERNAME,
+  };
+  if (REDIS_PASSWORD) redisOptions.password = REDIS_PASSWORD;
+
+  const c = createClient(redisOptions);
+  c.on('error', (err) => {
+    console.error('Redis Client Error', err);
+  });
+  return c;
+}
+
+async function connectIfNeeded() {
+  if (isDisabled) return false;
+
+  if (!client) {
+    client = createRedisClientIfConfigured();
+    if (!client) return false;
+  }
+
+  if (!isConnected) {
+    try {
+      await client.connect();
+      isConnected = true;
+      console.log('Redis Connected');
+    } catch (err) {
+      console.error('Redis connection failed, disabling cache:', err.message || err);
+      isDisabled = true;
+      try {
+        await client.quit();
+      } catch (_) {
+        // ignore
+      }
+      client = null;
+      return false;
+    }
+  }
+
+  return true;
 }
 
 const cache = {
@@ -38,7 +72,8 @@ const cache = {
    * @param {number} [ttl] - time to live in seconds
    */
   async set(key, value, ttl) {
-    await connectIfNeeded();
+    const ok = await connectIfNeeded();
+    if (!ok) return;
     const val = typeof value === 'string' ? value : JSON.stringify(value);
     if (ttl) {
       await client.set(key, val, { EX: ttl });
@@ -53,7 +88,8 @@ const cache = {
    * @returns {Promise<any>}
    */
   async get(key) {
-    await connectIfNeeded();
+    const ok = await connectIfNeeded();
+    if (!ok) return null;
     const val = await client.get(key);
     try {
       return JSON.parse(val);
@@ -67,7 +103,8 @@ const cache = {
    * @param {string} key
    */
   async del(key) {
-    await connectIfNeeded();
+    const ok = await connectIfNeeded();
+    if (!ok) return;
     await client.del(key);
   },
 
@@ -75,7 +112,7 @@ const cache = {
    * Disconnect the Redis client
    */
   async disconnect() {
-    if (isConnected) {
+    if (client && isConnected) {
       await client.disconnect();
       isConnected = false;
     }

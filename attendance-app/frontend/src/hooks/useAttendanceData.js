@@ -5,26 +5,33 @@ import { api, statsApi } from '../services/api';
 const fetcher = url => api.get(url).then(res => res.data);
 
 // Dashboard Hooks
-export const useDashboardStats = (threshold = 75) => {
-  // We use stable key, but threshold can vary.
-  // Optimization: Fetch with a FIXED query (e.g., 75) to cache hits properly,
-  // and handle threshold math on client side (as we already implemented).
-  // SWR key: '/stats/dashboard?threshold=75'
+export const useDashboardStats = () => {
+  // Fetch raw, threshold-agnostic stats once.
+  // All threshold-based calculations (80/75/70 slider) are done on the client.
+
+  const swrKey = `/attendance/dashboard`;
 
   const { data, error, isLoading, isValidating, mutate } = useSWR(
-    `/stats/dashboard?threshold=75`,
-    () => statsApi.dashboard({ threshold: 75 }).then(res => res.data),
-    {
-       revalidateOnFocus: true, // Auto Refresh when specific tab active
-       revalidateOnMount: true, // Always refresh when component mounts
-       dedupingInterval: 60000, // Cache for 1 minute (prevents excessive calls)
-    }
+   swrKey,
+   () => statsApi.dashboard().then(res => res.data),
+   {
+     // Still avoid focus-based refetches, but allow
+     // an initial fetch on mount so we don't depend
+     // entirely on preload state.
+     revalidateOnFocus: false,
+     revalidateOnMount: true,
+     dedupingInterval: 60000,
+   }
   );
+
+  // Only show "loading" before we have any data at all.
+  const loading = !data && (isLoading || isValidating);
 
   return {
     data,
-    loading: isLoading || isValidating,
+    loading,
     error,
+    isValidating,
     mutate // For manual reload
   };
 };
@@ -121,7 +128,7 @@ export const useRefreshData = () => {
             '/holidays',
             '/user/profile',
             `/attendance?date=${today}`,
-            '/stats/dashboard?threshold=75'
+          '/attendance/dashboard'
         ];
 
         // Execute all refreshes in parallel

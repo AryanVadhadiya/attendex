@@ -14,7 +14,7 @@ const occurrenceSchema = new mongoose.Schema({
   weeklySlotId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'WeeklySlot',
-    required: true
+    default: null
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -37,11 +37,21 @@ const occurrenceSchema = new mongoose.Schema({
   isExcluded: {
     type: Boolean,
     default: false
+  },
+  isAdhoc: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 
-// Ensure unique occurrence per slot per date
-occurrenceSchema.index({ date: 1, weeklySlotId: 1 }, { unique: true });
+// Ensure unique occurrence per slot per date (templated slots only)
+occurrenceSchema.index(
+  { date: 1, weeklySlotId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { weeklySlotId: { $exists: true, $ne: null } }
+  }
+);
 
 // Performance Indexes
 occurrenceSchema.index({ userId: 1, isExcluded: 1, date: 1 });

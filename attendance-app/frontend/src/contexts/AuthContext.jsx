@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSWRConfig } from 'swr';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -7,18 +8,51 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+  const { cache, mutate } = useSWRConfig();
+
+  const clearClientCache = () => {
+    try {
+      const preservedTheme = localStorage.getItem('theme');
+      localStorage.clear();
+      if (preservedTheme) {
+        localStorage.setItem('theme', preservedTheme);
+      }
+      sessionStorage.clear();
+    } catch (_) {}
+
+    try {
+      cache?.clear?.();
+      mutate(() => true, undefined, { revalidate: false });
+    } catch (err) {
+      console.warn('Failed to clear SWR cache on logout', err);
+    }
+  };
 
   useEffect(() => {
-    // Determine user from token or fetch profile check
-    if (token) {
-        // Ideally we verify token with backend /me endpoint or just decode if we trust it temporarily
-        // For now, let's assume we have user data in localStorage too or decode it
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
-    }
-    setLoading(false);
+    const bootstrapAuth = async () => {
+      const storedToken = localStorage.getItem('token');
+      if (!storedToken) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Verify token and hydrate user from backend
+        const res = await api.get('/user/profile');
+        setToken(storedToken);
+        setUser(res.data);
+        localStorage.setItem('user', JSON.stringify(res.data));
+      } catch (err) {
+        // Token invalid/expired or network error – clear auth state
+        clearClientCache();
+        setToken(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    bootstrapAuth();
   }, [token]);
 
   const login = (userData, accessToken, refreshToken) => {
@@ -30,9 +64,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    clearClientCache();
     setToken(null);
     setUser(null);
   };
