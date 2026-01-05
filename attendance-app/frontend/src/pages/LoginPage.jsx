@@ -114,9 +114,7 @@ const LoginPage = () => {
           </form>
 
           <div className="mt-8 pt-6 border-t border-border text-center">
-             <p className="text-xs text-muted-foreground">
-                Demo Account: <span className="text-foreground font-mono">demo@example.com</span> / <span className="text-foreground font-mono">password123</span>
-             </p>
+
              <div className="mt-4">
                 <p className="text-xs text-muted-foreground">
                     Don't have an account? <Link to="/signup" className="text-foreground font-medium hover:underline">Sign up</Link>
