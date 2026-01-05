@@ -58,9 +58,19 @@ const getAttendanceByDate = async (req, res) => {
 const submitAttendance = async (req, res) => {
   const startTime = Date.now();
   const { entries } = req.body; // [{ occurrenceId, present }]
+
+  if (!entries || !Array.isArray(entries)) {
+    return res.status(400).json({ message: 'Invalid payload: entries must be an array' });
+  }
+
+  const validEntries = entries.filter(e => e && e.occurrenceId);
+  if (validEntries.length === 0) {
+    return res.json({ message: 'No valid entries to process' });
+  }
+
   try {
     if (req.user.isTimetableLocked) {
-        const occurrenceIds = entries.map(e => e.occurrenceId);
+        const occurrenceIds = validEntries.map(e => e.occurrenceId);
         const occurrences = await Occurrence.find({ _id: { $in: occurrenceIds } });
 
         const todayStart = dayjs().tz(USER_TZ).startOf('day');
@@ -71,8 +81,8 @@ const submitAttendance = async (req, res) => {
         }
     }
 
-    await bulkMarkAttendance(req.user._id, entries);
-    console.log('[PERF] submitAttendance', req.user._id.toString(), Date.now() - startTime, 'ms', 'entries:', entries.length);
+    await bulkMarkAttendance(req.user._id, validEntries);
+    console.log('[PERF] submitAttendance', req.user._id.toString(), Date.now() - startTime, 'ms', 'entries:', validEntries.length);
     res.json({ message: 'Attendance updated' });
   } catch (err) {
     console.error('[PERF] submitAttendance error', req.user._id.toString(), Date.now() - startTime, 'ms', err.message);
