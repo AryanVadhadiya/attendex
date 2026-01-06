@@ -28,7 +28,7 @@ const MainLayout = () => {
     preload('/holidays', fetcher);
     preload('/user/profile', fetcher);
     preload(`/attendance?date=${today}`, fetcher);
-    preload('/stats/dashboard?threshold=75', fetcher);
+    preload('/attendance/dashboard', fetcher);
   }, []);
 
   const navItems = [

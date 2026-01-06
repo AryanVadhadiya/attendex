@@ -17,7 +17,10 @@ function cacheMiddleware(keyGenerator, ttl = 3600) {
       // Override res.json to cache the response
       const originalJson = res.json.bind(res);
       res.json = (body) => {
-        cache.set(key, body, ttl);
+		// Fire-and-forget cache set; log but don't block on errors
+		cache.set(key, body, ttl).catch(() => {
+			// Ignore cache errors to avoid impacting main response
+		});
         return originalJson(body);
       };
       next();

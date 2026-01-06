@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSWRConfig } from 'swr';
 import api from '../services/api';
 import { useAttendanceByDate, useRefreshData } from '../hooks/useAttendanceData';
@@ -10,12 +10,16 @@ import { useToast } from '../context/ToastContext';
 
 const TodayPage = () => {
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // SWR Hook
   const { occurrences, loading: loadingSessions, mutate } = useAttendanceByDate(date);
   const { mutate: globalMutate } = useSWRConfig();
   const toast = useToast();
   const refreshData = useRefreshData();
+
+  // Perf timer for Prev/Next navigation
+  const navTimerRef = useRef(null);
 
   const [sessions, setSessions] = useState(occurrences || []);
   const [submitting, setSubmitting] = useState(false);
@@ -24,19 +28,48 @@ const TodayPage = () => {
   useEffect(() => {
     if (occurrences) {
       setSessions(occurrences);
+      setIsNavigating(false); // Data loaded, stop showing loading state
     }
   }, [occurrences]);
 
-  const loading = loadingSessions && sessions.length === 0;
+  const loading = loadingSessions || isNavigating;
 
-  // Removed manual fetchSessions function
+  // Log how long it takes after Prev/Next navigation until data is ready
+  useEffect(() => {
+    if (!loadingSessions && navTimerRef.current != null) {
+      const elapsed = performance.now() - navTimerRef.current;
+      console.log('[PERF] today nav:', (elapsed / 1000).toFixed(2) + 's');
+      navTimerRef.current = null;
+    }
+  }, [loadingSessions]);
+
+  // Prefetch previous and next day's data in the background once current date has loaded
+  useEffect(() => {
+    if (!loadingSessions && occurrences && occurrences.length > 0) {
+      const base = dayjs(date);
+      const prevDate = base.subtract(1, 'day').format('YYYY-MM-DD');
+      const nextDate = base.add(1, 'day').format('YYYY-MM-DD');
+
+      const fetcher = (url) => api.get(url).then(res => res.data);
+
+      const prevKey = `/attendance?date=${prevDate}`;
+      const nextKey = `/attendance?date=${nextDate}`;
+
+      globalMutate(prevKey, fetcher(prevKey), { revalidate: false, populateCache: true });
+      globalMutate(nextKey, fetcher(nextKey), { revalidate: false, populateCache: true });
+    }
+  }, [loadingSessions, occurrences, date, globalMutate]);
 
   const shiftDate = (days) => {
+    // Start timer when user presses Prev/Next
+    navTimerRef.current = performance.now();
+    setIsNavigating(true); // Show loading state immediately
     const newDate = dayjs(date).add(days, 'day').format('YYYY-MM-DD');
     setDate(newDate);
   };
 
   const setToday = () => {
+    setIsNavigating(true);
     setDate(dayjs().format('YYYY-MM-DD'));
   };
 
@@ -64,10 +97,13 @@ const TodayPage = () => {
     }));
 
     try {
+      const start = performance.now();
       await api.post('/attendance/bulk', { entries });
       toast.success("Attendance Saved Successfully");
       await mutate(); // Update local list
       await refreshData(); // Update global stats and other views
+      const elapsed = performance.now() - start;
+      console.log('[PERF] today save:', (elapsed / 1000).toFixed(2) + 's');
     } catch (err) {
       toast.error("Failed to save attendance");
     } finally {
@@ -76,9 +112,53 @@ const TodayPage = () => {
   };
 
   if (loading) {
+    // Glazing skeleton for Today page
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      <div className="max-w-2xl mx-auto animate-in space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-muted" />
+            <div className="space-y-2">
+              <div className="h-5 w-32 bg-muted rounded" />
+              <div className="h-4 w-48 bg-muted rounded" />
+            </div>
+          </div>
+          <div className="flex items-center bg-card border border-border rounded-2xl p-1 gap-1">
+            <div className="h-7 w-12 bg-muted rounded" />
+            <div className="h-7 w-14 bg-muted rounded" />
+            <div className="h-7 w-12 bg-muted rounded" />
+            <div className="w-px h-4 bg-border mx-1" />
+            <div className="h-7 w-24 bg-muted rounded" />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between p-4 card animate-pulse">
+          <div className="space-y-2">
+            <div className="h-4 w-24 bg-muted rounded" />
+            <div className="h-5 w-40 bg-muted rounded" />
+          </div>
+          <div className="h-10 w-12 bg-muted rounded-full" />
+        </div>
+
+        <div className="flex gap-3 animate-pulse">
+          <div className="flex-1 h-10 bg-muted rounded-xl" />
+          <div className="flex-1 h-10 bg-muted rounded-xl" />
+        </div>
+
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="flex items-center justify-between p-4 rounded-xl border bg-card animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-muted" />
+                <div className="space-y-2">
+                  <div className="h-4 w-40 bg-muted rounded" />
+                  <div className="h-3 w-32 bg-muted rounded" />
+                </div>
+              </div>
+              <div className="h-6 w-16 bg-muted rounded-full" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -190,8 +270,8 @@ const TodayPage = () => {
                   className={clsx(
                     "group flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all",
                     isPresent
-                      ? "bg-accent/5 border-accent/30 shadow-sm"
-                      : "bg-card border-border hover:border-muted-foreground/30"
+                      ? "bg-accent/10 border-accent/40 shadow-sm"
+                      : "bg-destructive/10 border-destructive/40 hover:border-destructive/50"
                   )}
                 >
                   <div className="flex items-center">

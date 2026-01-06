@@ -171,6 +171,74 @@ export default function PublishModal({ isOpen, step, message, onConfirm, onCance
                                 </motion.div>
                             )}
 
+                            {/* CONFIRM RESET PRIMARY */}
+                            {step === 'confirm_reset_primary' && (
+                                <motion.div
+                                    key="confirm_reset_primary"
+                                    variants={stepVariants}
+                                    initial="hidden"
+                                    animate="visible"
+                                    exit="exit"
+                                    className="flex flex-col items-center text-center py-4"
+                                >
+                                    <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400">
+                                        <AlertTriangle className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-foreground mb-2">Reset Timetable?</h3>
+                                    <p className="text-sm text-muted-foreground mb-6 max-w-[90%]">
+                                        {message || 'Resetting unlocks the semester start date but will wipe all attendance data once you publish again.'}
+                                    </p>
+                                    <div className="flex gap-3 w-full">
+                                        <button
+                                            onClick={onCancel}
+                                            className="flex-1 py-2.5 px-4 rounded-xl border border-border bg-transparent hover:bg-muted text-sm font-medium transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={onConfirm}
+                                            className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium transition-colors shadow-lg shadow-amber-500/30"
+                                        >
+                                            Continue
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {/* CONFIRM RESET SECONDARY */}
+                            {step === 'confirm_reset_secondary' && (
+                                <motion.div
+                                    key="confirm_reset_secondary"
+                                    variants={stepVariants}
+                                    initial="hidden"
+                                    animate="visible"
+                                    exit="exit"
+                                    className="flex flex-col items-center text-center py-4"
+                                >
+                                    <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 text-destructive">
+                                        <AlertTriangle className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-foreground mb-2">Final Confirmation</h3>
+                                    <p className="text-sm text-muted-foreground mb-6 max-w-[90%]">
+                                        This action cannot be undone. Publishing after this reset will delete every attendance record tied to the current timetable.
+                                    </p>
+                                    <div className="flex gap-3 w-full">
+                                        <button
+                                            onClick={onCancel}
+                                            className="flex-1 py-2.5 px-4 rounded-xl border border-border bg-transparent hover:bg-muted text-sm font-medium transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={onConfirm}
+                                            className="flex-1 py-2.5 px-4 rounded-xl bg-destructive hover:bg-red-600 text-white text-sm font-medium transition-colors shadow-lg shadow-destructive/20"
+                                        >
+                                            Yes, Reset
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+
                             {/* SUCCESS STATE */}
                             {(step === 'success' || step === 'lock_success' || step === 'unlock_success') && (
                                 <motion.div
@@ -198,7 +266,27 @@ export default function PublishModal({ isOpen, step, message, onConfirm, onCance
                                     <p className="text-sm text-muted-foreground mt-2">
                                         {step === 'lock_success' ? 'Configuration is now read-only.' :
                                          step === 'unlock_success' ? 'Configuration is now editable.' :
-                                         'Timetable published and occurrences generated.'}
+                                         (message || 'Timetable published and occurrences generated.')}
+                                    </p>
+                                </motion.div>
+                            )}
+
+                            {/* RESET READY STATE */}
+                            {step === 'reset_ready' && (
+                                <motion.div
+                                    key="reset_ready"
+                                    variants={stepVariants}
+                                    initial="hidden"
+                                    animate="visible"
+                                    exit="exit"
+                                    className="flex flex-col items-center text-center py-4"
+                                >
+                                    <div className="w-16 h-16 bg-amber-200/40 rounded-full flex items-center justify-center mb-4">
+                                        <Check className="w-8 h-8 text-amber-600" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-foreground">Reset Armed</h3>
+                                    <p className="text-sm text-muted-foreground mt-2">
+                                        {message || 'Start date unlocked. Update it and publish to rebuild from scratch.'}
                                     </p>
                                 </motion.div>
                             )}

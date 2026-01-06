@@ -14,6 +14,7 @@ const DEFAULT_HOLIDAYS = [
 ];
 
 const getHolidays = async (req, res) => {
+  const startTime = Date.now();
   try {
     let holidays = await HolidayRange.find({ userId: req.user._id }).sort({ startDate: 1 });
 
@@ -23,8 +24,10 @@ const getHolidays = async (req, res) => {
         holidays.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
     }
 
+    console.log('[PERF] getHolidays', req.user._id.toString(), Date.now() - startTime, 'ms', 'count:', holidays.length);
     res.json(holidays);
   } catch (err) {
+    console.error('[PERF] getHolidays error', req.user._id.toString(), Date.now() - startTime, 'ms', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -37,13 +40,14 @@ const createHoliday = async (req, res) => {
   });
 
   const { error } = schema.validate(req.body);
-  if (error) return res.status(400).json({ message: error.details[0].message });
+    if (error) return res.status(400).json({ message: error.details[0].message });
 
-  if (req.user.isTimetableLocked) {
+    if (req.user.isTimetableLocked) {
       return res.status(403).json({ message: 'Configuration is locked. Unlock to add holidays.' });
-  }
+    }
 
-  try {
+    const startTime = Date.now();
+    try {
     const holiday = await HolidayRange.create({
       ...req.body,
       userId: req.user._id
@@ -67,20 +71,26 @@ const createHoliday = async (req, res) => {
        userId: req.user._id,
        date: { $gte: new Date(req.body.startDate), $lte: new Date(req.body.endDate) }
     }, { isExcluded: true });
+    console.log('[PERF] createHoliday', req.user._id.toString(), Date.now() - startTime, 'ms');
 
     res.status(201).json(holiday);
   } catch (err) {
+    console.error('[PERF] createHoliday error', req.user._id.toString(), Date.now() - startTime, 'ms', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
 const deleteHoliday = async (req, res) => {
+  const startTime = Date.now();
   try {
     if (req.user.isTimetableLocked) {
         return res.status(403).json({ message: 'Configuration is locked. Unlock to remove holidays.' });
     }
     const holiday = await HolidayRange.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
-    if (!holiday) return res.status(404).json({ message: 'Holiday not found' });
+    if (!holiday) {
+      console.log('[PERF] deleteHoliday not-found', req.user._id.toString(), Date.now() - startTime, 'ms');
+      return res.status(404).json({ message: 'Holiday not found' });
+    }
 
     // Re-include occurrences?
     const Occurrence = require('../models/Occurrence');
@@ -89,8 +99,10 @@ const deleteHoliday = async (req, res) => {
        date: { $gte: holiday.startDate, $lte: holiday.endDate }
     }, { isExcluded: false });
 
+    console.log('[PERF] deleteHoliday', req.user._id.toString(), Date.now() - startTime, 'ms');
     res.json({ message: 'Holiday removed' });
   } catch (err) {
+    console.error('[PERF] deleteHoliday error', req.user._id.toString(), Date.now() - startTime, 'ms', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

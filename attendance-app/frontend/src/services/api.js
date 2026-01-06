@@ -53,11 +53,15 @@ export const statsApi = {
 export const userApi = {
   getProfile: () => api.get('/user/profile'),
   updateProfile: (data) => api.put('/user/profile', data),
+  updateLabUnits: (data) => api.patch('/user/lab-units', data),
+  unlockLabUnits: () => api.post('/user/lab-units/unlock', { confirm: true })
 };
 
 export const attendanceApi = {
-  getPending: () => api.get('/attendance/pending'),
-  acknowledge: (ids) => api.post('/attendance/acknowledge', { occurrenceIds: ids })
+    getPending: () => api.get('/attendance/pending'),
+  acknowledge: (ids) => api.post('/attendance/acknowledge', { occurrenceIds: ids }),
+  addExtraClass: (payload) => api.post('/attendance/extra', payload),
+  removeExtraClass: (occurrenceId) => api.delete(`/attendance/extra/${occurrenceId}`)
 };
 
 export default api;

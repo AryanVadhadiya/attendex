@@ -1,14 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSWRConfig } from 'swr';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
-import api, { subjectApi, userApi } from '../services/api';
+import api, { userApi } from '../services/api';
 import { useSubjects, useUserProfile, useTimetable, useHolidays, useRefreshData } from '../hooks/useAttendanceData';
 import DraggableSubject from '../components/TimetableEditor/DraggableSubject';
 import DroppableCell from '../components/TimetableEditor/DroppableCell';
 import PublishModal from '../components/TimetableEditor/PublishModal';
 import { useToast } from '../context/ToastContext';
-import { Loader2, Save, Lock, Unlock, X } from 'lucide-react';
+import { Loader2, Save, Lock, Unlock, X, CalendarDays, Info } from 'lucide-react';
 import dayjs from 'dayjs';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -17,6 +17,7 @@ const HOURS = Array.from({ length: 11 }, (_, i) => i + 8); // 8 to 18
 const TimetablePage = () => {
     // SWR Hooks
     const { subjects = [] } = useSubjects();
+    const navigate = useNavigate();
     const { user, mutate: mutateUser } = useUserProfile();
     const { holidays: serverHolidays } = useHolidays(); // Read-only from server initially
     const { slots: serverSlots, loading: slotsLoading, mutate: mutateTimetable } = useTimetable();
@@ -34,6 +35,35 @@ const TimetablePage = () => {
     const [holidays, setHolidays] = useState([]); // Local editable state
     const [activeDrag, setActiveDrag] = useState(null);
     const [initialStartDate, setInitialStartDate] = useState(null);
+    const [startResetMode, setStartResetMode] = useState(false);
+
+    const hasPublishedWindow = Boolean(user?.semesterEndDate);
+    const availableDraggables = useMemo(() => {
+        if (!subjects?.length) {
+            return 0;
+        }
+
+        return subjects.reduce((total, sub) => {
+            const placedLec = slots.filter(s => s.subject && s.subject._id === sub._id && s.sessionType === 'lecture').length;
+            const placedLab = slots.filter(s => s.subject && s.subject._id === sub._id && s.sessionType === 'lab').length;
+
+            const remainingLec = Math.max(0, (sub.lecturesPerWeek || 0) - placedLec);
+            const remainingLab = Math.max(0, (sub.labsPerWeek || 0) - placedLab);
+            return total + remainingLec + remainingLab;
+        }, 0);
+    }, [subjects, slots]);
+
+    const showSubjectPalette = !isLocked && availableDraggables > 0;
+    const showPalettePanel = isLocked || showSubjectPalette;
+    const showCreateSubjectsCTA = !isLocked && subjects.length === 0;
+    const lockedStartValue = useMemo(() => {
+        return user?.semesterStartDate ? dayjs(user.semesterStartDate).format('YYYY-MM-DD') : null;
+    }, [user?.semesterStartDate]);
+    const lockedStartLabel = lockedStartValue ? dayjs(lockedStartValue).format('DD MMM YYYY') : 'Not set';
+
+    // Perf timers
+    const lockTimerRef = useRef(null);
+    const publishTimerRef = useRef(null);
 
     // Modal State
     const [publishModal, setPublishModal] = useState({
@@ -43,6 +73,22 @@ const TimetablePage = () => {
         payload: null
     });
 
+    const beginResetFlow = () => {
+        setPublishModal({
+            isOpen: true,
+            step: 'confirm_reset_primary',
+            message: 'Resetting lets you change the semester start date but will wipe all attendance once you publish again. Continue?',
+            payload: null
+        });
+    };
+
+    const cancelResetMode = () => {
+        if (lockedStartValue) {
+            setStartDate(lockedStartValue);
+        }
+        setStartResetMode(false);
+    };
+
     // Sync User Profile & Holidays
     useEffect(() => {
         if (user) {
@@ -51,6 +97,11 @@ const TimetablePage = () => {
                  setStartDate(userStart);
                  setInitialStartDate(userStart);
              }
+             const userEnd = user.semesterEndDate ? dayjs(user.semesterEndDate).format('YYYY-MM-DD') : null;
+             if (userEnd) {
+                 setEndDate(userEnd);
+             }
+             setStartResetMode(false);
         }
     }, [user]);
 
@@ -158,6 +209,9 @@ const TimetablePage = () => {
         try {
             const newState = !isLocked;
 
+            // Start lock/unlock timer
+            lockTimerRef.current = performance.now();
+
             // Set initial modal state
             setPublishModal({
                 isOpen: true,
@@ -166,15 +220,20 @@ const TimetablePage = () => {
                 payload: null
             });
 
-            await userApi.updateProfile({ isTimetableLocked: newState });
-            await mutateUser(); // Wait for data update
-            refreshData(); // Global refresh
+            const res = await userApi.updateProfile({ isTimetableLocked: newState });
+            // Optimistically update user profile from response without extra GET
+            await mutateUser(res.data, false);
 
             // Success state
             setPublishModal(prev => ({
                 ...prev,
                 step: newState ? 'lock_success' : 'unlock_success'
             }));
+
+            if (lockTimerRef.current != null) {
+                const elapsed = performance.now() - lockTimerRef.current;
+                console.log('[PERF] timetable lock:', newState ? 'lock' : 'unlock', (elapsed / 1000).toFixed(2) + 's');
+            }
 
             // Close after delay
             setTimeout(() => {
@@ -187,6 +246,10 @@ const TimetablePage = () => {
                 message: "Failed to update lock status: " + (err.response?.data?.message || err.message),
                 payload: null
             });
+            if (lockTimerRef.current != null) {
+                const elapsed = performance.now() - lockTimerRef.current;
+                console.log('[PERF] timetable lock FAILED:', (elapsed / 1000).toFixed(2) + 's');
+            }
             // Also show toast for extra visibility if modal fails? No, modal is enough.
             // The existing code sets modal state.
         }
@@ -194,17 +257,16 @@ const TimetablePage = () => {
 
     // --- Publishing Logic with Modal ---
 
-    const executePublish = async (payload, confirmAutoMark = false, forceReset = false) => {
+    const executePublish = async (payload, confirmAutoMark = false, forceResetOverride) => {
         try {
-            // If it's the initial call (not a retry), save the template first
-            if (!confirmAutoMark && !forceReset) {
-                 await api.post('/timetable', { slots: payload.weeklySlots });
-            }
-
+            const effectiveForceReset = typeof forceResetOverride === 'boolean'
+                ? forceResetOverride
+                : Boolean(payload?.forceReset);
+            const { forceReset: _forceReset, ...publishPayload } = payload || {};
             const res = await api.post('/timetable/publish', {
-                ...payload,
+                ...publishPayload,
                 confirmAutoMark,
-                forceReset
+                forceReset: effectiveForceReset
             });
 
             if (res.data.requiresConfirmation) {
@@ -216,11 +278,20 @@ const TimetablePage = () => {
                 });
             } else {
                 // Success!
-                setPublishModal({ ...publishModal, step: 'success', isOpen: true });
+                setPublishModal(prev => ({ ...prev, step: 'success', isOpen: true, message: res.data.summary }));
                 setInitialStartDate(startDate);
+                setStartResetMode(false);
 
-                // Refresh data
-                globalMutate(key => true);
+                if (publishTimerRef.current != null) {
+                    const elapsed = performance.now() - publishTimerRef.current;
+                    console.log('[PERF] timetable publish success:', (elapsed / 1000).toFixed(2) + 's');
+                }
+
+                // Refresh core data (timetable, dashboard, today, etc.) in background
+                // so the UI success state is not blocked on network.
+                refreshData().catch(err => {
+                    console.error('refreshData failed after publish', err);
+                });
 
                 // Close after delay
                 setTimeout(() => {
@@ -243,10 +314,18 @@ const TimetablePage = () => {
                     payload: null
                 });
             }
+
+            if (publishTimerRef.current != null) {
+                const elapsed = performance.now() - publishTimerRef.current;
+                console.log('[PERF] timetable publish FAILED:', (elapsed / 1000).toFixed(2) + 's');
+            }
         }
     };
 
     const handlePublishClick = () => {
+        // Start publish timer from button click
+        publishTimerRef.current = performance.now();
+
         const payload = {
             startDate,
             endDate,
@@ -257,7 +336,8 @@ const TimetablePage = () => {
                 sessionType: s.sessionType,
                 subjectId: s.subject._id
             })),
-            holidays: holidays
+            holidays: holidays,
+            forceReset: startResetMode
         };
 
         setPublishModal({
@@ -267,16 +347,32 @@ const TimetablePage = () => {
             payload: payload
         });
 
-        executePublish(payload);
+        executePublish(payload, false, startResetMode);
     };
 
     const handleModalConfirm = () => {
         if (publishModal.step === 'confirm_auto_mark') {
             setPublishModal(prev => ({ ...prev, step: 'publishing' }));
-            executePublish(publishModal.payload, true, false);
+            executePublish(publishModal.payload, true, publishModal.payload?.forceReset || startResetMode);
         } else if (publishModal.step === 'confirm_force_reset') {
             setPublishModal(prev => ({ ...prev, step: 'publishing' }));
             executePublish(publishModal.payload, false, true);
+        } else if (publishModal.step === 'confirm_reset_primary') {
+            setPublishModal(prev => ({ ...prev, step: 'confirm_reset_secondary', message: 'This will clear every attendance record and timetable entry once you publish again. Are you absolutely sure?' }));
+        } else if (publishModal.step === 'confirm_reset_secondary') {
+            if (lockedStartValue) {
+                setStartDate(lockedStartValue);
+            }
+            setStartResetMode(true);
+            setPublishModal({
+                isOpen: true,
+                step: 'reset_ready',
+                message: 'Reset armed. Update the start date and publish to rebuild everything from scratch.',
+                payload: null
+            });
+            setTimeout(() => {
+                setPublishModal(prev => ({ ...prev, isOpen: false }));
+            }, 1800);
         }
     };
 
@@ -285,30 +381,69 @@ const TimetablePage = () => {
     };
 
     if (loading) {
+        // Glazing skeleton for timetable grid and sidebars
         return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            <div className="flex h-[calc(100vh-100px)] gap-3 animate-in">
+                <div className="w-44 flex flex-col card p-3 overflow-y-auto shrink-0 animate-pulse">
+                    <div className="h-5 w-24 bg-muted rounded mb-4" />
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="h-12 rounded-lg bg-muted mb-3" />
+                    ))}
+                </div>
+
+                <div className="flex-1 overflow-auto card flex flex-col animate-pulse">
+                    <div className="grid grid-cols-[60px_repeat(5,1fr)] border-b border-border bg-muted/60">
+                        <div className="p-3" />
+                        {DAYS.map(day => (
+                            <div key={day} className="p-3">
+                                <div className="h-4 w-16 bg-muted rounded mx-auto" />
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                        {HOURS.map(hour => (
+                            <div key={hour} className="grid grid-cols-[60px_repeat(5,1fr)] h-16">
+                                <div className="border-b border-r border-border/60 p-2" />
+                                {DAYS.map(day => (
+                                    <div
+                                        key={`${day}-${hour}`}
+                                        className="border-b border-r border-border/60 h-16 bg-muted/40"
+                                    />
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="w-44 card p-3 h-fit shrink-0 animate-pulse space-y-4">
+                    <div className="h-5 w-28 bg-muted rounded" />
+                    <div className="h-9 w-full bg-muted rounded" />
+                    <div className="h-20 w-full bg-muted rounded" />
+                    <div className="h-9 w-full bg-muted rounded" />
+                </div>
             </div>
         );
     }
 
     return (
         <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex h-[calc(100vh-100px)] gap-3">
-                {/* Sidebar Palette - Compact */}
-                <div className="w-44 flex flex-col card p-3 overflow-y-auto shrink-0">
-                    <h3 className="font-semibold text-foreground mb-4">Subjects</h3>
-                    {isLocked ? (
-                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center py-8">
-                            <Lock className="w-8 h-8 mb-2 opacity-50" />
-                            <p className="text-sm font-medium">Configuration Locked</p>
-                            <p className="text-xs opacity-70 mt-1">Unlock to make changes</p>
+            <div className={`flex h-[calc(100vh-100px)] ${showPalettePanel ? 'gap-3' : 'gap-4'}`}>
+                {showPalettePanel && (
+                    <div className="w-48 flex flex-col card p-4 overflow-y-auto shrink-0 bg-card/90 border border-border/60 rounded-3xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-semibold text-foreground">Subjects</h3>
+                            {!isLocked && <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Drag</span>}
                         </div>
-                    ) : (
-                        <>
-                            {subjects.map(sub => {
-                                const placedLec = slots.filter(s => s.subject._id === sub._id && s.sessionType === 'lecture').length;
-                                const placedLab = slots.filter(s => s.subject._id === sub._id && s.sessionType === 'lab').length;
+                        {isLocked ? (
+                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center py-8">
+                                <Lock className="w-8 h-8 mb-2 opacity-50" />
+                                <p className="text-sm font-medium">Configuration Locked</p>
+                                <p className="text-xs opacity-70 mt-1">Unlock to make changes</p>
+                            </div>
+                        ) : (
+                            subjects.map(sub => {
+                                const placedLec = slots.filter(s => s.subject && s.subject._id === sub._id && s.sessionType === 'lecture').length;
+                                const placedLab = slots.filter(s => s.subject && s.subject._id === sub._id && s.sessionType === 'lab').length;
 
                                 const remainingLec = (sub.lecturesPerWeek || 0) - placedLec;
                                 const remainingLab = (sub.labsPerWeek || 0) - placedLab;
@@ -316,7 +451,7 @@ const TimetablePage = () => {
                                 if (remainingLec <= 0 && remainingLab <= 0) return null;
 
                                 return (
-                                    <div key={sub._id}>
+                                    <div key={sub._id} className="space-y-2 mb-3">
                                         {remainingLec > 0 && (
                                             <DraggableSubject
                                                 subject={sub}
@@ -333,21 +468,26 @@ const TimetablePage = () => {
                                         )}
                                     </div>
                                 );
-                            })}
-                            {subjects.length === 0 && (
-                                <div className="text-center py-8">
-                                    <p className="text-sm text-muted-foreground mb-4">No subjects yet.</p>
-                                    <Link to="/subjects" className="btn-primary text-xs py-2 block">
-                                        Create Subjects
-                                    </Link>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
+                            })
+                        )}
+                    </div>
+                )}
 
                 {/* Grid */}
-                <div className="flex-1 overflow-auto card flex flex-col">
+                <div className="flex-1 overflow-auto card flex flex-col min-w-0">
+                    {showCreateSubjectsCTA && (
+                        <div className="border-b border-border/60 bg-gradient-to-r from-muted/60 to-transparent px-4 py-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-2 font-medium">
+                                    <Info className="w-4 h-4 text-accent" />
+                                    Add subjects before arranging your timetable.
+                                </div>
+                                <Link to="/subjects" className="btn-primary text-xs px-3 py-1.5 w-fit">
+                                    Create Subjects
+                                </Link>
+                            </div>
+                        </div>
+                    )}
                     {/* Header */}
                     <div className="grid grid-cols-[60px_repeat(5,1fr)] border-b border-border bg-muted">
                         <div className="p-3 text-center text-xs font-semibold text-muted-foreground border-r border-border/60">Time</div>
@@ -395,12 +535,19 @@ const TimetablePage = () => {
                 </div>
 
                 {/* Controls - Compact */}
-                <div className="w-44 card p-3 h-fit shrink-0">
-                    <h3 className="font-semibold text-foreground mb-4">Configuration</h3>
+                <div className="w-60 card p-4 h-fit shrink-0 rounded-3xl border border-border/70 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-foreground">Configuration</h3>
+                        {hasPublishedWindow && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-emerald-500/10 text-emerald-600">
+                                Live
+                            </span>
+                        )}
+                    </div>
 
                     <button
                         onClick={toggleLock}
-                        className={`btn-secondary w-full py-2 mb-6 flex items-center justify-center text-xs font-bold ${isLocked ? 'bg-accent/10 text-accent border-accent/30' : ''}`}
+                        className={`w-full py-2.5 rounded-2xl border text-sm font-semibold flex items-center justify-center transition-colors ${isLocked ? 'bg-accent/10 text-accent border-accent/30' : 'bg-muted hover:bg-muted/80 border-border/70'}`}
                     >
                         {isLocked ? (
                             <><Unlock className="w-4 h-4 mr-2" /> Unlock Config</>
@@ -409,68 +556,150 @@ const TimetablePage = () => {
                         )}
                     </button>
 
-                    {!isLocked && (
+                    {!isLocked ? (
                         <>
-                            <div className="space-y-4 mb-6">
-                                <div>
-                                    <label className="text-xs font-medium text-muted-foreground block mb-1">Start Date</label>
-                                    <input
-                                        type="date"
-                                        value={startDate}
-                                        onChange={e => setStartDate(e.target.value)}
-                                        className={`input text-sm ${initialStartDate && startDate !== initialStartDate ? 'border-amber-500' : ''}`}
-                                    />
-                                    {initialStartDate && startDate !== initialStartDate && (
-                                        <p className="text-[10px] text-amber-600 mt-1 font-medium leading-tight">
-                                            Warning: Changing the start date will require a full reset of all attendance data.
+                            {hasPublishedWindow ? (
+                                startResetMode ? (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-medium text-destructive uppercase tracking-wide">Reset Start Date</label>
+                                            <button
+                                                className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold"
+                                                onClick={cancelResetMode}
+                                            >
+                                                Cancel Reset
+                                            </button>
+                                        </div>
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={e => setStartDate(e.target.value)}
+                                            className="input text-sm border-destructive/60"
+                                        />
+                                        <p className="text-[11px] text-destructive/80 leading-relaxed">
+                                            Publishing while reset is armed will erase every attendance entry and regenerate your timetable from the new start date.
                                         </p>
+                                        <div>
+                                            <label className="text-xs font-medium text-muted-foreground block mb-1">End Date</label>
+                                            <input
+                                                type="date"
+                                                value={endDate}
+                                                onChange={e => setEndDate(e.target.value)}
+                                                className="input text-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-muted/50 to-card p-4 shadow-inner">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Start Date</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-base font-semibold text-foreground">{lockedStartLabel}</span>
+                                                        <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                                                    </div>
+                                                    <p className="text-[11px] text-muted-foreground mt-2">Locked after your first publish.</p>
+                                                </div>
+                                                <button
+                                                    onClick={beginResetFlow}
+                                                    className="text-[10px] uppercase tracking-wide text-destructive font-semibold"
+                                                >
+                                                    Reset
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-medium text-muted-foreground block mb-1">End Date</label>
+                                            <input
+                                                type="date"
+                                                value={endDate}
+                                                onChange={e => setEndDate(e.target.value)}
+                                                className="input text-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                )
+                            ) : (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-medium text-muted-foreground block mb-1">Start Date</label>
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={e => setStartDate(e.target.value)}
+                                            className={`input text-sm ${initialStartDate && startDate !== initialStartDate ? 'border-amber-500' : ''}`}
+                                        />
+                                        {initialStartDate && startDate !== initialStartDate && (
+                                            <p className="text-[10px] text-amber-600 mt-1 font-medium leading-tight">
+                                                Warning: Changing the start date will require a full reset of all attendance data.
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-muted-foreground block mb-1">End Date</label>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={e => setEndDate(e.target.value)}
+                                            className="input text-sm"
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                        Pick your initial semester window. You can extend the end date later without touching past attendance.
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="rounded-2xl border border-dashed border-border/70 p-3 bg-muted/30 space-y-2">
+                                <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                                    <span>Holidays ({holidays.length})</span>
+                                    <button
+                                        className="text-[10px] uppercase tracking-wide text-accent font-semibold"
+                                        onClick={() => navigate('/calendar')}
+                                    >
+                                        Manage
+                                    </button>
+                                </div>
+                                <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                                    {holidays.length === 0 ? (
+                                        <p className="text-xs text-muted-foreground/80">No breaks added yet.</p>
+                                    ) : (
+                                        holidays.map((h, i) => (
+                                            <div key={i} className="flex justify-between items-start bg-card/80 p-2 rounded-xl text-xs border border-border/50">
+                                                <div>
+                                                    <div className="font-medium text-foreground">{h.reason}</div>
+                                                    <div className="text-muted-foreground">{dayjs(h.startDate).format('DD MMM YYYY')}</div>
+                                                </div>
+                                                <button
+                                                    onClick={() => setHolidays(holidays.filter((_, idx) => idx !== i))}
+                                                    className="btn-ghost text-muted-foreground hover:text-destructive p-1"
+                                                    title="Remove Holiday"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ))
                                     )}
                                 </div>
-                                <div>
-                                    <label className="text-xs font-medium text-muted-foreground block mb-1">End Date</label>
-                                    <input
-                                        type="date"
-                                        value={endDate}
-                                        onChange={e => setEndDate(e.target.value)}
-                                        className="input text-sm"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="mb-6 border-t border-border pt-4">
-                                 <label className="text-xs font-medium text-muted-foreground block mb-2">Holidays ({holidays.length})</label>
-                                 <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-                                     {holidays.map((h, i) => (
-                                         <div key={i} className="flex justify-between items-start bg-muted p-2 rounded-lg text-xs border border-border">
-                                             <div>
-                                                 <div className="font-medium text-foreground">{h.reason}</div>
-                                                 <div className="text-muted-foreground">{dayjs(h.startDate).format('DD MMM YYYY')}</div>
-                                             </div>
-                                             <button
-                                                onClick={() => setHolidays(holidays.filter((_, idx) => idx !== i))}
-                                                className="btn-ghost text-muted-foreground hover:text-destructive p-1"
-                                                title="Remove Holiday"
-                                             >
-                                                 <X className="w-3 h-3" />
-                                             </button>
-                                         </div>
-                                     ))}
-                                 </div>
                             </div>
 
                             <button
                                 onClick={handlePublishClick}
-                                className="btn-accent w-full py-2 flex items-center justify-center text-xs font-bold"
+                                className="btn-accent w-full py-3 flex items-center justify-center text-sm font-semibold rounded-2xl shadow-lg shadow-accent/20"
                             >
-                                <Save className="w-3.5 h-3.5 mr-1.5" />
+                                <Save className="w-4 h-4 mr-2" />
                                 Publish
                             </button>
-                            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                                Publishing will generate occurrences for the selected date range.
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                {hasPublishedWindow
+                                    ? 'Publishing reuses existing classes, trims future ones if needed, and only adds extra weeks beyond your last end date.'
+                                    : 'Publishing will generate occurrences for the selected date range.'}
                             </p>
                         </>
+                    ) : (
+                        <p className="text-xs text-muted-foreground text-center">Unlock to edit or publish.</p>
                     )}
-                     {isLocked && <p className="text-xs text-muted-foreground text-center">Unlock to edit or publish.</p>}
                 </div>
             </div>
             <DragOverlay>

@@ -3,6 +3,7 @@ const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
 const isBetween = require('dayjs/plugin/isBetween');
 const Occurrence = require('../models/Occurrence');
+const AttendanceRecord = require('../models/AttendanceRecord');
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -24,13 +25,9 @@ const generateOccurrences = async (userId, startDate, endDate, weeklySlots, holi
   const start = dayjs(startDate).tz(USER_TZ).startOf('day');
   const end = dayjs(endDate).tz(USER_TZ).endOf('day');
 
-  // 1. Mark ALL existing occurrences for this user as excluded initially.
-  // This ensures that the global load strictly reflects the LATEST published range.
-  // Classes outside this range (past or future publishing sessions) will be hidden.
-  await Occurrence.updateMany(
-    { userId },
-    { $set: { isExcluded: true } }
-  );
+  if (end.isBefore(start)) {
+    return { count: 0, startDate, endDate };
+  }
 
   const occurrencesToUpsert = [];
   const slotsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
@@ -65,7 +62,7 @@ const generateOccurrences = async (userId, startDate, endDate, weeklySlots, holi
               weeklySlotId: slot._id,
               durationHours: slot.durationHours,
               sessionType: slot.sessionType,
-              isExcluded: false // Reactivate
+              isExcluded: false
             }
           },
           upsert: true
@@ -79,10 +76,6 @@ const generateOccurrences = async (userId, startDate, endDate, weeklySlots, holi
     await Occurrence.bulkWrite(occurrencesToUpsert);
   }
 
-  // Final cleanup: If an occurrence was excluded and has NO attendance record, we can safely delete it.
-  // If it HAS an attendance record, we might want to keep it or handle it separately.
-  // For now, keeping them excluded is enough to remove them from stats.
-
   return {
     count: occurrencesToUpsert.length,
     startDate,
@@ -90,4 +83,32 @@ const generateOccurrences = async (userId, startDate, endDate, weeklySlots, holi
   };
 };
 
-module.exports = { generateOccurrences };
+const deleteOccurrencesAfter = async (userId, cutoffDate) => {
+  const cutoff = dayjs(cutoffDate).tz(USER_TZ).endOf('day');
+
+  const occurrences = await Occurrence.find({
+    userId,
+    date: { $gt: cutoff.toDate() }
+  }).select('_id');
+
+  if (!occurrences.length) {
+    return { removed: 0, blocked: false };
+  }
+
+  const occurrenceIds = occurrences.map(o => o._id);
+  const recordsCount = await AttendanceRecord.countDocuments({
+    userId,
+    occurrenceId: { $in: occurrenceIds }
+  });
+
+  if (recordsCount > 0) {
+    return { removed: 0, blocked: true };
+  }
+
+  await AttendanceRecord.deleteMany({ occurrenceId: { $in: occurrenceIds } });
+  await Occurrence.deleteMany({ _id: { $in: occurrenceIds } });
+
+  return { removed: occurrenceIds.length, blocked: false };
+};
+
+module.exports = { generateOccurrences, deleteOccurrencesAfter };
