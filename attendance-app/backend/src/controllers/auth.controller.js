@@ -44,6 +44,45 @@ const registerUser = async (req, res) => {
   }
 };
 
+const googleLogin = async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    const admin = require('../config/firebase');
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const { email, name, picture } = decodedToken;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // Create new user (Student by default)
+      const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(randomPassword, salt);
+
+      user = await User.create({
+        name: name || email.split('@')[0],
+        email,
+        passwordHash,
+        role: 'student',
+        // Optional: save picture if you add a field for it later
+      });
+    }
+
+    const tokens = generateTokens(user._id);
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      ...tokens
+    });
+  } catch (err) {
+    console.error('Google Login Error:', err);
+    res.status(401).json({ message: 'Invalid or expired token', error: err.message });
+  }
+};
+
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
@@ -80,4 +119,4 @@ const refreshToken = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, refreshToken };
+module.exports = { registerUser, loginUser, refreshToken, googleLogin };
