@@ -12,13 +12,22 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Middleware
-// CORS configuration
+// // CORS configuration
+// app.use(cors({
+//   origin: '*',
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization']
+// }));
+// app.options("*", cors());
+
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: "https://attendex-frontend.vercel.app",
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
 }));
 app.options("*", cors());
+
 
 // Helmet with relaxed settings for development
 app.use(helmet({
@@ -30,11 +39,13 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Rate limiting
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5000, // Increased for development to prevent 429 errors
-  validate: { trustProxy: false }
+  windowMs: 15 * 60 * 1000,
+  max: 5000,
+  skip: (req) => req.method === "OPTIONS"
 });
+
 app.use('/api', limiter);
 
 // MongoDB Connection for Vercel/Serverless
