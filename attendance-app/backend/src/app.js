@@ -21,12 +21,22 @@ app.set('trust proxy', 1);
 // app.options("*", cors());
 
 app.use(cors({
-  origin: "https://attendex-frontend.vercel.app",
+  origin: ["http://localhost:5173", "https://attendex-frontend.vercel.app", "http://localhost:5090"],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
-app.options("*", cors());
+// Handle preflight requests for all routes
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 
 // Helmet with relaxed settings for development
